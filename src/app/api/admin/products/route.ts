@@ -3,6 +3,8 @@ import { getAllProducts, saveProduct, logActivity } from '@/lib/services/db-serv
 import { verifyAdminApiAccess } from '@/lib/auth/admin-auth';
 import { revalidatePath } from 'next/cache';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   const auth = await verifyAdminApiAccess('STAFF');
   if (auth.errorResponse) return auth.errorResponse;
@@ -36,6 +38,7 @@ export async function POST(req: Request) {
     revalidatePath('/shop');
     revalidatePath(`/shop/${saved.categorySlug}`);
     revalidatePath(`/product/${saved.slug}`);
+    revalidatePath('/api/products');
 
     return NextResponse.json({ success: true, product: saved });
   } catch (error: any) {

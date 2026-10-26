@@ -30,8 +30,8 @@ export default function ShopPage() {
       try {
         setLoading(true);
         const [pRes, cRes] = await Promise.all([
-          fetch('/api/admin/products'),
-          fetch('/api/admin/categories'),
+          fetch('/api/products'),
+          fetch('/api/categories'),
         ]);
         if (pRes.ok) {
           const prods = await pRes.json();

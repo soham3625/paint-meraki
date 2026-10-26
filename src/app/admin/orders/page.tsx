@@ -34,7 +34,7 @@ export default function AdminOrdersPage() {
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/orders');
+      const res = await fetch('/api/admin/orders', { cache: 'no-store' });
       if (res.ok) setOrders(await res.json());
     } catch (e) {
       toast.error('Failed to load orders');

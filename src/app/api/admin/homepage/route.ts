@@ -3,6 +3,8 @@ import { getHomepageConfig, updateHomepageConfig, logActivity } from '@/lib/serv
 import { verifyAdminApiAccess } from '@/lib/auth/admin-auth';
 import { revalidatePath } from 'next/cache';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   const auth = await verifyAdminApiAccess('STAFF');
   if (auth.errorResponse) return auth.errorResponse;
@@ -28,6 +30,7 @@ export async function PUT(req: Request) {
     await logActivity(session.email, session.name, 'HOMEPAGE_UPDATED', 'Homepage', 'Updated homepage layout and curated products', 'default');
 
     revalidatePath('/');
+    revalidatePath('/api/homepage');
 
     return NextResponse.json({ success: true, config: updated });
   } catch (error: any) {

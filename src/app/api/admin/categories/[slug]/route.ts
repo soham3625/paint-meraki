@@ -20,6 +20,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ slug:
 
     revalidatePath('/');
     revalidatePath('/shop');
+    revalidatePath('/api/categories');
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

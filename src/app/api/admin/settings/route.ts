@@ -3,6 +3,8 @@ import { getBusinessSettings, updateBusinessSettings, logActivity } from '@/lib/
 import { verifyAdminApiAccess } from '@/lib/auth/admin-auth';
 import { revalidatePath } from 'next/cache';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   const auth = await verifyAdminApiAccess('ADMIN');
   if (auth.errorResponse) return auth.errorResponse;
@@ -37,6 +39,7 @@ export async function PUT(req: Request) {
     revalidatePath('/');
     revalidatePath('/cart');
     revalidatePath('/checkout');
+    revalidatePath('/api/settings');
 
     return NextResponse.json({ success: true, settings: updated });
   } catch (error: any) {

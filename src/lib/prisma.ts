@@ -14,7 +14,7 @@ try {
       log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
     });
 
-  if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prismaInstance;
+  globalForPrisma.prisma = prismaInstance;
 } catch (e) {
   // Graceful fallback when Prisma Client is not generated or DB is offline
   prismaInstance = new Proxy({}, {

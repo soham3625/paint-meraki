@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getAllOrders } from '@/lib/services/db-service';
 import { verifyAdminApiAccess } from '@/lib/auth/admin-auth';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   const auth = await verifyAdminApiAccess('STAFF');
   if (auth.errorResponse) return auth.errorResponse;

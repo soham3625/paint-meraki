@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getAllUsers, saveUser, deleteUser, logActivity } from '@/lib/services/db-service';
 import { verifyAdminApiAccess, hashPassword } from '@/lib/auth/admin-auth';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   const auth = await verifyAdminApiAccess('ADMIN');
   if (auth.errorResponse) return auth.errorResponse;

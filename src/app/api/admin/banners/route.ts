@@ -3,6 +3,8 @@ import { getAllBanners, saveBanner, deleteBanner, logActivity } from '@/lib/serv
 import { verifyAdminApiAccess } from '@/lib/auth/admin-auth';
 import { revalidatePath } from 'next/cache';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   const auth = await verifyAdminApiAccess('STAFF');
   if (auth.errorResponse) return auth.errorResponse;
@@ -32,6 +34,7 @@ export async function POST(req: Request) {
     await logActivity(session.email, session.name, 'BANNER_SAVED', 'Banner', `Saved banner: ${saved.title}`, saved.id);
 
     revalidatePath('/');
+    revalidatePath('/api/homepage');
 
     return NextResponse.json({ success: true, banner: saved });
   } catch (error: any) {
@@ -57,6 +60,7 @@ export async function DELETE(req: Request) {
     await logActivity(session.email, session.name, 'BANNER_DELETED', 'Banner', `Deleted banner #${id}`, id);
 
     revalidatePath('/');
+    revalidatePath('/api/homepage');
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

@@ -9,6 +9,8 @@ import {
 import { getCurrentCustomerSession } from '@/lib/auth-session';
 import { Order, OrderItem } from '@/types';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const customer = await getCurrentCustomerSession();
@@ -198,6 +200,7 @@ export async function POST(req: Request) {
     const saved = await createOrder(verifiedOrder);
     return NextResponse.json({ success: true, order: saved });
   } catch (err: any) {
-    return NextResponse.json({ success: false, error: 'Failed to process order' }, { status: 500 });
+    console.error('[POST /api/orders] Order placement error:', err.message);
+    return NextResponse.json({ success: false, error: err.message || 'Failed to process order' }, { status: 500 });
   }
 }

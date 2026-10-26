@@ -1,6 +1,6 @@
 // ============================================
 // paint_n_meraki — UNIFIED DATABASE SERVICE
-// Resilient Data Access with Prisma + Active Runtime Store
+// Authoritative Data Access with Prisma + Active Runtime Resilience
 // ============================================
 
 import { prisma } from '@/lib/prisma';
@@ -162,7 +162,7 @@ const defaultUsers: User[] = [
   },
 ];
 
-// Initial Orders
+// Initial Demo Orders
 const defaultOrders: Order[] = [
   {
     id: 'ord-1',
@@ -275,7 +275,7 @@ const defaultCustomOrders: CustomOrderRequest[] = [
   },
 ];
 
-// In-Memory Global Store to preserve runtime modifications across API calls
+// In-Memory Global Store for resilient fallback
 const globalRuntime = globalThis as unknown as {
   _products?: Product[];
   _categories?: Category[];
@@ -335,10 +335,317 @@ if (!globalRuntime._activityLogs || globalRuntime._activityLogs.length === 0) {
       adminName: 'Astha Patel',
       action: 'SYSTEM_INITIALIZED',
       entity: 'System',
-      details: 'paint_n_meraki Admin Panel initialized with 16 catalog products & active collections',
+      details: 'paint_n_meraki Admin Panel initialized with active collections & catalog',
       createdAt: new Date().toISOString(),
     },
   ];
+}
+
+// Check if database is configured
+function isDbConfigured(): boolean {
+  return Boolean(process.env.DATABASE_URL && process.env.DATABASE_URL.trim() !== '');
+}
+
+// Helper to map Prisma Product model to App Product
+function mapPrismaProductToAppProduct(dbP: any): Product {
+  let sizes: ProductSize[] = [{ label: 'Standard', value: 'standard', price: Number(dbP.price), stock: 10 }];
+  if (Array.isArray(dbP.sizes)) {
+    sizes = dbP.sizes;
+  } else if (typeof dbP.sizes === 'string') {
+    try {
+      sizes = JSON.parse(dbP.sizes);
+    } catch {}
+  }
+
+  return {
+    id: dbP.id,
+    name: dbP.name,
+    slug: dbP.slug,
+    category: dbP.categoryName || 'Resin Art',
+    categorySlug: dbP.categorySlug,
+    description: dbP.description || '',
+    shortDescription: dbP.shortDescription || '',
+    price: Number(dbP.price),
+    compareAtPrice: dbP.compareAtPrice ? Number(dbP.compareAtPrice) : undefined,
+    costPrice: dbP.costPrice ? Number(dbP.costPrice) : undefined,
+    images: Array.isArray(dbP.images) && dbP.images.length > 0 ? dbP.images : ['/images/categories/clock-2.jpg'],
+    thumbnail: dbP.thumbnail || (Array.isArray(dbP.images) && dbP.images[0]) || '/images/categories/clock-2.jpg',
+    sizes,
+    colors: Array.isArray(dbP.colors) ? dbP.colors : ['Gold', 'White', 'Blue'],
+    customizable: Boolean(dbP.customizable),
+    featured: Boolean(dbP.featured),
+    bestSeller: Boolean(dbP.bestSeller),
+    isNewArrival: Boolean(dbP.isNewArrival),
+    status: (dbP.status as ProductStatus) || 'ACTIVE',
+    tags: Array.isArray(dbP.tags) ? dbP.tags : [],
+    stock: Number(dbP.stock ?? 10),
+    sku: dbP.sku || dbP.slug,
+    weight: dbP.weight || '1.2 kg',
+    dimensions: dbP.dimensions || '12 x 12 inches',
+    material: dbP.material || 'High-gloss Epoxy Resin on Solid MDF Base',
+    careInstructions: dbP.careInstructions || 'Wipe clean with a soft, damp microfiber cloth. Keep away from direct harsh sunlight.',
+    shippingInfo: dbP.shippingInfo || 'Dispatched in 4-6 business days. Free shipping across India.',
+    rating: Number(dbP.rating || 5.0),
+    reviewCount: Number(dbP.reviewCount || 1),
+    createdAt: dbP.createdAt instanceof Date ? dbP.createdAt.toISOString() : (dbP.createdAt || new Date().toISOString()),
+    updatedAt: dbP.updatedAt instanceof Date ? dbP.updatedAt.toISOString() : (dbP.updatedAt || new Date().toISOString()),
+  };
+}
+
+// Helper to map Prisma Order model to App Order
+function mapPrismaOrderToAppOrder(dbOrder: any): Order {
+  return {
+    id: dbOrder.id,
+    orderNumber: dbOrder.orderNumber,
+    userId: dbOrder.userId || undefined,
+    customer: {
+      fullName: dbOrder.customerName,
+      email: dbOrder.customerEmail,
+      mobile: dbOrder.customerMobile,
+    },
+    shippingAddress: {
+      address: dbOrder.address,
+      city: dbOrder.city,
+      state: dbOrder.state,
+      pincode: dbOrder.pincode,
+      landmark: dbOrder.landmark || undefined,
+    },
+    items: (dbOrder.items || []).map((i: any) => ({
+      id: i.id,
+      product: i.product ? mapPrismaProductToAppProduct(i.product) : {
+        id: i.productId,
+        name: 'Handcrafted Resin Art',
+        slug: 'resin-art',
+        categoryName: 'Resin Art',
+        categorySlug: 'resin-art',
+        description: '',
+        shortDescription: '',
+        price: Number(i.price) || 0,
+        images: ['/images/categories/clock-2.jpg'],
+        thumbnail: '/images/categories/clock-2.jpg',
+        sizes: [],
+        colors: [],
+        material: 'Epoxy Resin',
+        careInstructions: '',
+        shippingInfo: '',
+        sku: i.productId,
+        stock: 10,
+        rating: 5,
+        reviewCount: 0,
+        customizable: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      quantity: Number(i.quantity) || 1,
+      price: Number(i.price) || 0,
+      selectedSize: i.selectedSize || 'Standard',
+      customization: i.customization || undefined,
+    })),
+    subtotal: Number(dbOrder.subtotal) || 0,
+    shippingCharge: Number(dbOrder.shippingCharge) || 0,
+    codFee: Number(dbOrder.codFee) || 0,
+    discountAmount: dbOrder.discountAmount ? Number(dbOrder.discountAmount) : undefined,
+    couponCode: dbOrder.couponCode || undefined,
+    total: Number(dbOrder.total) || 0,
+    paymentMethod: dbOrder.paymentMethod,
+    paymentStatus: dbOrder.paymentStatus,
+    orderStatus: dbOrder.orderStatus,
+    utrNumber: dbOrder.utrNumber || undefined,
+    trackingNumber: dbOrder.trackingNumber || undefined,
+    courierName: dbOrder.courierName || undefined,
+    notes: dbOrder.notes || undefined,
+    createdAt: dbOrder.createdAt instanceof Date ? dbOrder.createdAt.toISOString() : dbOrder.createdAt,
+    updatedAt: dbOrder.updatedAt instanceof Date ? dbOrder.updatedAt.toISOString() : dbOrder.updatedAt,
+  };
+}
+
+// Auto-seed database if connected but empty
+let _seedingPromise: Promise<void> | null = null;
+async function autoSeedDatabase() {
+  if (!isDbConfigured()) return;
+  if (_seedingPromise) return _seedingPromise;
+
+  _seedingPromise = (async () => {
+    try {
+      // 1. Seed Categories if empty
+      const catCount = await prisma.category.count();
+      if (catCount === 0) {
+        for (const cat of seedCategories) {
+          await prisma.category.upsert({
+            where: { slug: cat.slug },
+            create: {
+              name: cat.name,
+              slug: cat.slug,
+              description: cat.description,
+              image: cat.image,
+              sortOrder: cat.sortOrder,
+            },
+            update: {},
+          });
+        }
+      }
+
+      // 2. Seed Products if empty
+      const prodCount = await prisma.product.count();
+      if (prodCount === 0) {
+        for (const prod of seedProducts) {
+          await prisma.category.upsert({
+            where: { slug: prod.categorySlug },
+            create: {
+              name: prod.category || prod.categorySlug,
+              slug: prod.categorySlug,
+              description: `Handcrafted ${prod.category || prod.categorySlug} by paint_n_meraki`,
+              image: prod.thumbnail || '/images/categories/clock-2.jpg',
+            },
+            update: {},
+          });
+
+          await prisma.product.upsert({
+            where: { slug: prod.slug },
+            create: {
+              id: prod.id,
+              name: prod.name,
+              slug: prod.slug,
+              categoryName: prod.category,
+              categorySlug: prod.categorySlug,
+              description: prod.description,
+              shortDescription: prod.shortDescription,
+              price: prod.price,
+              compareAtPrice: prod.compareAtPrice,
+              images: prod.images,
+              thumbnail: prod.thumbnail,
+              sizes: prod.sizes as any,
+              colors: prod.colors,
+              customizable: prod.customizable,
+              featured: prod.featured,
+              bestSeller: prod.bestSeller,
+              isNewArrival: prod.isNewArrival,
+              status: prod.status as any,
+              tags: prod.tags,
+              stock: prod.stock,
+              sku: prod.sku,
+              material: prod.material,
+              careInstructions: prod.careInstructions,
+              shippingInfo: prod.shippingInfo,
+            },
+            update: {},
+          });
+        }
+      }
+
+      // 3. Seed HomepageConfig if empty
+      const homeConfig = await prisma.homepageConfig.findUnique({ where: { id: 'default' } });
+      if (!homeConfig) {
+        await prisma.homepageConfig.create({
+          data: {
+            id: 'default',
+            heroHeading: defaultHomepageConfig.heroHeading,
+            heroSubtitle: defaultHomepageConfig.heroSubtitle,
+            heroDescription: defaultHomepageConfig.heroDescription,
+            heroButtonText: defaultHomepageConfig.heroButtonText,
+            heroButtonLink: defaultHomepageConfig.heroButtonLink,
+            heroImage: defaultHomepageConfig.heroImage,
+            heroEnabled: defaultHomepageConfig.heroEnabled,
+            featuredCategories: defaultHomepageConfig.featuredCategories,
+            featuredProducts: defaultHomepageConfig.featuredProducts,
+            bestSellers: defaultHomepageConfig.bestSellers,
+            newArrivals: defaultHomepageConfig.newArrivals,
+          },
+        });
+      }
+
+      // 4. Seed BusinessSettings if empty
+      const settings = await prisma.businessSettings.findUnique({ where: { id: 'default' } });
+      if (!settings) {
+        await prisma.businessSettings.create({
+          data: {
+            id: 'default',
+            businessName: defaultSettings.businessName,
+            logo: defaultSettings.logo,
+            whatsappNumber: defaultSettings.whatsappNumber,
+            instagramUrl: defaultSettings.instagramUrl,
+            email: defaultSettings.email,
+            upiId: defaultSettings.upiId,
+            upiQrCode: defaultSettings.upiQrCode,
+            codEnabled: defaultSettings.codEnabled,
+            codMinOrder: defaultSettings.codMinOrder,
+            codMaxOrder: defaultSettings.codMaxOrder,
+            codFee: defaultSettings.codFee,
+            shippingCharge: defaultSettings.shippingCharge,
+            freeShippingThreshold: defaultSettings.freeShippingThreshold,
+            processingTime: defaultSettings.processingTime,
+            deliveryTime: defaultSettings.deliveryTime,
+            announcementText: defaultSettings.announcementText,
+            announcementEnabled: defaultSettings.announcementEnabled,
+            businessAddress: defaultSettings.businessAddress,
+          },
+        });
+      }
+
+      // 5. Seed Users if empty
+      const userCount = await prisma.user.count();
+      if (userCount === 0) {
+        for (const user of defaultUsers) {
+          await prisma.user.create({
+            data: {
+              id: user.id,
+              fullName: user.fullName,
+              email: user.email,
+              mobile: user.mobile,
+              passwordHash: user.passwordHash,
+              role: user.role as any,
+              status: user.status as any,
+            },
+          });
+        }
+      }
+
+      // 6. Seed Banners if empty
+      const bannerCount = await prisma.banner.count();
+      if (bannerCount === 0) {
+        for (const banner of defaultBanners) {
+          await prisma.banner.create({
+            data: {
+              id: banner.id,
+              title: banner.title,
+              subtitle: banner.subtitle,
+              imageUrl: banner.imageUrl,
+              buttonText: banner.buttonText,
+              buttonLink: banner.buttonLink,
+              position: banner.position,
+              isActive: banner.isActive,
+              sortOrder: banner.sortOrder,
+            },
+          });
+        }
+      }
+
+      // 7. Seed Coupons if empty
+      const couponCount = await prisma.coupon.count();
+      if (couponCount === 0) {
+        for (const coupon of defaultCoupons) {
+          await prisma.coupon.create({
+            data: {
+              id: coupon.id,
+              code: coupon.code,
+              description: coupon.description,
+              discountType: coupon.discountType as any,
+              discountValue: coupon.discountValue,
+              minOrderAmount: coupon.minOrderAmount,
+              maxDiscount: coupon.maxDiscount,
+              isActive: coupon.isActive,
+            },
+          });
+        }
+      }
+    } catch (err: any) {
+      console.warn('[autoSeedDatabase] Table structure check or seed notice:', err.message);
+    } finally {
+      _seedingPromise = null;
+    }
+  })();
+
+  return _seedingPromise;
 }
 
 // Log an activity
@@ -363,8 +670,8 @@ export async function logActivity(
 
   globalRuntime._activityLogs = [log, ...(globalRuntime._activityLogs || [])];
 
-  try {
-    if (process.env.DATABASE_URL) {
+  if (isDbConfigured()) {
+    try {
       await prisma.activityLog.create({
         data: {
           adminEmail,
@@ -375,14 +682,32 @@ export async function logActivity(
           details,
         },
       });
+    } catch (err: any) {
+      console.warn('[logActivity] Notice:', err.message);
     }
-  } catch {}
+  }
 }
 
 // ============================================
 // PRODUCT SERVICE
 // ============================================
 export async function getAllProducts(): Promise<Product[]> {
+  if (isDbConfigured()) {
+    try {
+      await autoSeedDatabase();
+      const dbProducts = await prisma.product.findMany({
+        orderBy: { createdAt: 'desc' },
+      });
+      if (dbProducts && dbProducts.length > 0) {
+        const mapped = dbProducts.map(mapPrismaProductToAppProduct);
+        globalRuntime._products = mapped;
+        return mapped;
+      }
+    } catch (err: any) {
+      console.warn('[getAllProducts] Prisma read notice:', err.message);
+    }
+  }
+
   if (!globalRuntime._products || globalRuntime._products.length === 0) {
     globalRuntime._products = [...seedProducts];
   }
@@ -390,6 +715,21 @@ export async function getAllProducts(): Promise<Product[]> {
 }
 
 export async function getProductByIdOrSlug(identifier: string): Promise<Product | undefined> {
+  if (isDbConfigured()) {
+    try {
+      const dbProduct = await prisma.product.findFirst({
+        where: {
+          OR: [{ id: identifier }, { slug: identifier }],
+        },
+      });
+      if (dbProduct) {
+        return mapPrismaProductToAppProduct(dbProduct);
+      }
+    } catch (err: any) {
+      console.warn('[getProductByIdOrSlug] Prisma read notice:', err.message);
+    }
+  }
+
   const products = await getAllProducts();
   return products.find((p) => p.id === identifier || p.slug === identifier);
 }
@@ -447,8 +787,19 @@ export async function saveProduct(productData: Partial<Product> & { name: string
     globalRuntime._products = [newProduct, ...(globalRuntime._products || [])];
   }
 
-  try {
-    if (process.env.DATABASE_URL) {
+  if (isDbConfigured()) {
+    try {
+      await prisma.category.upsert({
+        where: { slug: newProduct.categorySlug },
+        create: {
+          name: newProduct.category,
+          slug: newProduct.categorySlug,
+          description: `Handcrafted ${newProduct.category} collection`,
+          image: newProduct.thumbnail || '/images/categories/clock-2.jpg',
+        },
+        update: {},
+      });
+
       await prisma.product.upsert({
         where: { slug: newProduct.slug },
         update: {
@@ -507,8 +858,11 @@ export async function saveProduct(productData: Partial<Product> & { name: string
           shippingInfo: newProduct.shippingInfo,
         },
       });
+    } catch (err: any) {
+      console.error('[saveProduct] Failed to persist product to database:', err.message);
+      throw new Error(`Failed to save product to database: ${err.message}`);
     }
-  } catch {}
+  }
 
   return newProduct;
 }
@@ -519,13 +873,16 @@ export async function deleteProduct(productId: string): Promise<boolean> {
 
   globalRuntime._products = (globalRuntime._products || []).filter((p) => p.id !== productId && p.slug !== productId);
 
-  try {
-    if (process.env.DATABASE_URL) {
+  if (isDbConfigured()) {
+    try {
       await prisma.product.delete({
         where: { slug: existing.slug },
       });
+    } catch (err: any) {
+      console.error('[deleteProduct] Failed to delete product from database:', err.message);
+      throw new Error(`Failed to delete product from database: ${err.message}`);
     }
-  } catch {}
+  }
 
   return true;
 }
@@ -534,6 +891,33 @@ export async function deleteProduct(productId: string): Promise<boolean> {
 // CATEGORY SERVICE
 // ============================================
 export async function getAllCategories(): Promise<Category[]> {
+  if (isDbConfigured()) {
+    try {
+      await autoSeedDatabase();
+      const dbCategories = await prisma.category.findMany({
+        orderBy: { sortOrder: 'asc' },
+      });
+      if (dbCategories && dbCategories.length > 0) {
+        const products = await getAllProducts();
+        const mapped = dbCategories.map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          slug: c.slug,
+          description: c.description,
+          image: c.image,
+          sortOrder: c.sortOrder,
+          productCount: products.filter((p) => p.categorySlug === c.slug).length,
+          createdAt: c.createdAt instanceof Date ? c.createdAt.toISOString() : c.createdAt,
+          updatedAt: c.updatedAt instanceof Date ? c.updatedAt.toISOString() : c.updatedAt,
+        }));
+        globalRuntime._categories = mapped;
+        return mapped;
+      }
+    } catch (err: any) {
+      console.warn('[getAllCategories] Prisma read notice:', err.message);
+    }
+  }
+
   if (!globalRuntime._categories || globalRuntime._categories.length === 0) {
     globalRuntime._categories = [...seedCategories];
   }
@@ -571,8 +955,8 @@ export async function saveCategory(categoryData: Partial<Category> & { name: str
     globalRuntime._categories = [...(globalRuntime._categories || []), newCategory];
   }
 
-  try {
-    if (process.env.DATABASE_URL) {
+  if (isDbConfigured()) {
+    try {
       await prisma.category.upsert({
         where: { slug: newCategory.slug },
         update: {
@@ -589,8 +973,11 @@ export async function saveCategory(categoryData: Partial<Category> & { name: str
           sortOrder: newCategory.sortOrder,
         },
       });
+    } catch (err: any) {
+      console.error('[saveCategory] Failed to save category to database:', err.message);
+      throw new Error(`Failed to save category to database: ${err.message}`);
     }
-  } catch {}
+  }
 
   return newCategory;
 }
@@ -606,11 +993,14 @@ export async function deleteCategory(slug: string): Promise<{ success: boolean; 
 
   globalRuntime._categories = (globalRuntime._categories || []).filter((c) => c.slug !== slug && c.id !== slug);
 
-  try {
-    if (process.env.DATABASE_URL) {
+  if (isDbConfigured()) {
+    try {
       await prisma.category.delete({ where: { slug } });
+    } catch (err: any) {
+      console.error('[deleteCategory] Failed to delete category from database:', err.message);
+      throw new Error(`Failed to delete category from database: ${err.message}`);
     }
-  } catch {}
+  }
 
   return { success: true };
 }
@@ -652,7 +1042,39 @@ function normalizeOrder(order: Order): Order {
   };
 }
 
+// ============================================
+// ORDER SERVICE
+// ============================================
 export async function getAllOrders(): Promise<Order[]> {
+  if (isDbConfigured()) {
+    try {
+      const dbOrders = await prisma.order.findMany({
+        orderBy: { createdAt: 'desc' },
+        include: {
+          items: {
+            include: {
+              product: true,
+            },
+          },
+        },
+      });
+      if (dbOrders) {
+        const mapped = dbOrders.map(mapPrismaOrderToAppOrder);
+        // Retain any active runtime orders not yet represented in db
+        const seenNumbers = new Set(mapped.map((o: Order) => o.orderNumber));
+        for (const memOrder of (globalRuntime._orders || [])) {
+          if (!seenNumbers.has(memOrder.orderNumber) && memOrder.orderNumber !== 'PM1001' && memOrder.orderNumber !== 'PM1002') {
+            mapped.push(memOrder);
+          }
+        }
+        globalRuntime._orders = mapped;
+        return mapped;
+      }
+    } catch (err: any) {
+      console.warn('[getAllOrders] Prisma query notice:', err.message);
+    }
+  }
+
   if (!globalRuntime._orders || globalRuntime._orders.length === 0) {
     globalRuntime._orders = [...defaultOrders];
   }
@@ -660,8 +1082,35 @@ export async function getAllOrders(): Promise<Order[]> {
 }
 
 export async function getOrderByIdOrNumber(identifier: string): Promise<Order | undefined> {
-  const orders = await getAllOrders();
   const clean = identifier.toUpperCase().replace('#', '').trim();
+
+  if (isDbConfigured()) {
+    try {
+      const dbOrder = await prisma.order.findFirst({
+        where: {
+          OR: [
+            { id: identifier },
+            { orderNumber: identifier },
+            { orderNumber: clean },
+          ],
+        },
+        include: {
+          items: {
+            include: {
+              product: true,
+            },
+          },
+        },
+      });
+      if (dbOrder) {
+        return mapPrismaOrderToAppOrder(dbOrder);
+      }
+    } catch (err: any) {
+      console.warn('[getOrderByIdOrNumber] Prisma notice:', err.message);
+    }
+  }
+
+  const orders = await getAllOrders();
   const found = orders.find(
     (o) =>
       o.id === identifier ||
@@ -675,11 +1124,54 @@ export async function updateOrderStatus(
   orderNumber: string,
   updates: Partial<Order>
 ): Promise<Order | undefined> {
+  const clean = orderNumber.toUpperCase().replace('#', '').trim();
+
+  if (isDbConfigured()) {
+    try {
+      const existing = await prisma.order.findFirst({
+        where: {
+          OR: [{ orderNumber: clean }, { orderNumber }, { id: orderNumber }],
+        },
+      });
+
+      if (existing) {
+        const updateData: any = {};
+        if (updates.orderStatus) updateData.orderStatus = updates.orderStatus;
+        if (updates.paymentStatus) updateData.paymentStatus = updates.paymentStatus;
+        if (updates.utrNumber !== undefined) updateData.utrNumber = updates.utrNumber;
+        if (updates.trackingNumber !== undefined) updateData.trackingNumber = updates.trackingNumber;
+        if (updates.courierName !== undefined) updateData.courierName = updates.courierName;
+        if (updates.notes !== undefined) updateData.notes = updates.notes;
+
+        const updatedDb = await prisma.order.update({
+          where: { id: existing.id },
+          data: updateData,
+          include: {
+            items: {
+              include: {
+                product: true,
+              },
+            },
+          },
+        });
+
+        const mapped = mapPrismaOrderToAppOrder(updatedDb);
+        if (globalRuntime._orders) {
+          const idx = globalRuntime._orders.findIndex((o) => o.id === mapped.id || o.orderNumber === mapped.orderNumber);
+          if (idx > -1) globalRuntime._orders[idx] = mapped;
+        }
+        return mapped;
+      }
+    } catch (err: any) {
+      console.error('[updateOrderStatus] Prisma update error:', err.message);
+      throw new Error(`Failed to update order status in database: ${err.message}`);
+    }
+  }
+
   if (!globalRuntime._orders || globalRuntime._orders.length === 0) {
     globalRuntime._orders = [...defaultOrders];
   }
   const orders = globalRuntime._orders;
-  const clean = orderNumber.toUpperCase().replace('#', '').trim();
   const idx = orders.findIndex(
     (o) =>
       o.orderNumber.toUpperCase().replace('#', '').trim() === clean ||
@@ -696,23 +1188,6 @@ export async function updateOrderStatus(
 
   orders[idx] = updated;
   globalRuntime._orders = orders;
-
-  try {
-    if (process.env.DATABASE_URL) {
-      await prisma.order.update({
-        where: { orderNumber: updated.orderNumber },
-        data: {
-          orderStatus: updated.orderStatus as unknown as any,
-          paymentStatus: updated.paymentStatus as unknown as any,
-          utrNumber: updated.utrNumber,
-          trackingNumber: updated.trackingNumber,
-          courierName: updated.courierName,
-          notes: updated.notes,
-        },
-      });
-    }
-  } catch {}
-
   return updated;
 }
 
@@ -736,6 +1211,101 @@ export async function createOrder(order: Order): Promise<Order> {
     globalRuntime._orders = [normalized, ...list];
   }
 
+  if (isDbConfigured()) {
+    try {
+      const itemData = [];
+      for (const item of normalized.items) {
+        let prodId = item.product.id;
+        try {
+          const existingProd = await prisma.product.findUnique({ where: { id: prodId } });
+          if (!existingProd) {
+            const bySlug = await prisma.product.findUnique({ where: { slug: item.product.slug } });
+            if (bySlug) {
+              prodId = bySlug.id;
+            } else {
+              const createdP = await prisma.product.upsert({
+                where: { slug: item.product.slug },
+                create: {
+                  name: item.product.name,
+                  slug: item.product.slug,
+                  categoryName: item.product.category,
+                  categorySlug: item.product.categorySlug,
+                  description: item.product.description || '',
+                  shortDescription: item.product.shortDescription || '',
+                  price: item.product.price,
+                  images: item.product.images || [],
+                  thumbnail: item.product.thumbnail || '',
+                  sizes: item.product.sizes || [],
+                  colors: item.product.colors || [],
+                  material: item.product.material || 'Epoxy Resin',
+                  careInstructions: item.product.careInstructions || '',
+                  shippingInfo: item.product.shippingInfo || '',
+                  sku: item.product.sku || item.product.slug,
+                },
+                update: {},
+              });
+              prodId = createdP.id;
+            }
+          }
+        } catch (pErr) {
+          console.warn('[createOrder] Product resolution check:', pErr);
+        }
+
+        itemData.push({
+          productId: prodId,
+          quantity: item.quantity,
+          price: item.price,
+          selectedSize: typeof item.selectedSize === 'object' && item.selectedSize ? (item.selectedSize as any).label : String(item.selectedSize || 'Standard'),
+          customization: item.customization || undefined,
+        });
+      }
+
+      const savedDbOrder = await prisma.order.create({
+        data: {
+          id: normalized.id,
+          orderNumber: normalized.orderNumber,
+          userId: normalized.userId || undefined,
+          customerName: normalized.customer.fullName,
+          customerMobile: normalized.customer.mobile,
+          customerEmail: normalized.customer.email || '',
+          address: normalized.shippingAddress.address,
+          city: normalized.shippingAddress.city,
+          state: normalized.shippingAddress.state,
+          pincode: normalized.shippingAddress.pincode,
+          landmark: normalized.shippingAddress.landmark || null,
+          subtotal: normalized.subtotal,
+          shippingCharge: normalized.shippingCharge,
+          codFee: normalized.codFee,
+          discountAmount: normalized.discountAmount || 0,
+          couponCode: normalized.couponCode || null,
+          total: normalized.total,
+          paymentMethod: normalized.paymentMethod,
+          paymentStatus: normalized.paymentStatus as any,
+          orderStatus: normalized.orderStatus as any,
+          utrNumber: normalized.utrNumber || null,
+          trackingNumber: normalized.trackingNumber || null,
+          courierName: normalized.courierName || null,
+          notes: normalized.notes || null,
+          items: {
+            create: itemData,
+          },
+        },
+        include: {
+          items: {
+            include: {
+              product: true,
+            },
+          },
+        },
+      });
+
+      return mapPrismaOrderToAppOrder(savedDbOrder);
+    } catch (err: any) {
+      console.error('[createOrder] Failed to persist order in PostgreSQL:', err.message);
+      throw new Error(`Failed to persist order to database: ${err.message}`);
+    }
+  }
+
   return normalized;
 }
 
@@ -743,6 +1313,38 @@ export async function createOrder(order: Order): Promise<Order> {
 // CUSTOM ORDER SERVICE
 // ============================================
 export async function getAllCustomOrders(): Promise<CustomOrderRequest[]> {
+  if (isDbConfigured()) {
+    try {
+      const dbCustomOrders = await prisma.customOrder.findMany({
+        orderBy: { createdAt: 'desc' },
+      });
+      if (dbCustomOrders && dbCustomOrders.length > 0) {
+        const mapped: CustomOrderRequest[] = dbCustomOrders.map((co: any) => ({
+          id: co.id,
+          customerName: co.customerName,
+          whatsappNumber: co.whatsappNumber,
+          email: co.email || '',
+          productType: co.productType,
+          preferredSize: co.preferredSize || undefined,
+          preferredColors: co.preferredColors || undefined,
+          budget: co.budget || undefined,
+          quotationAmount: co.quotationAmount || undefined,
+          referenceImageUrl: co.referenceImageUrl || undefined,
+          personalPhotoUrl: co.personalPhotoUrl || undefined,
+          description: co.description,
+          specialInstructions: co.specialInstructions || undefined,
+          adminNotes: co.adminNotes || undefined,
+          status: co.status as CustomOrderStatus,
+          createdAt: co.createdAt instanceof Date ? co.createdAt.toISOString() : co.createdAt,
+          updatedAt: co.updatedAt instanceof Date ? co.updatedAt.toISOString() : co.updatedAt,
+        }));
+        globalRuntime._customOrders = mapped;
+        return mapped;
+      }
+    } catch (err: any) {
+      console.warn('[getAllCustomOrders] Prisma read notice:', err.message);
+    }
+  }
   if (!globalRuntime._customOrders || globalRuntime._customOrders.length === 0) {
     globalRuntime._customOrders = [...defaultCustomOrders];
   }
@@ -753,29 +1355,37 @@ export async function updateCustomOrderStatus(
   id: string,
   updates: Partial<CustomOrderRequest>
 ): Promise<CustomOrderRequest | undefined> {
-  const list = globalRuntime._customOrders || defaultCustomOrders;
-  const idx = list.findIndex((c) => c.id === id);
+  if (!globalRuntime._customOrders || globalRuntime._customOrders.length === 0) {
+    globalRuntime._customOrders = [...defaultCustomOrders];
+  }
+  const orders = globalRuntime._customOrders;
+  const idx = orders.findIndex((o) => o.id === id);
   if (idx === -1) return undefined;
 
   const updated: CustomOrderRequest = {
-    ...list[idx],
+    ...orders[idx],
     ...updates,
     updatedAt: new Date().toISOString(),
   };
-  list[idx] = updated;
 
-  try {
-    if (process.env.DATABASE_URL) {
+  orders[idx] = updated;
+  globalRuntime._customOrders = orders;
+
+  if (isDbConfigured()) {
+    try {
       await prisma.customOrder.update({
         where: { id },
         data: {
-          status: updated.status as unknown as any,
+          status: updated.status as any,
           quotationAmount: updated.quotationAmount,
           adminNotes: updated.adminNotes,
         },
       });
+    } catch (err: any) {
+      console.error('[updateCustomOrderStatus] Failed to update custom order in database:', err.message);
+      throw new Error(`Failed to update custom order in database: ${err.message}`);
     }
-  } catch {}
+  }
 
   return updated;
 }
@@ -784,11 +1394,45 @@ export async function updateCustomOrderStatus(
 // BUSINESS SETTINGS SERVICE
 // ============================================
 export async function getBusinessSettings(): Promise<BusinessSettings> {
+  if (isDbConfigured()) {
+    try {
+      await autoSeedDatabase();
+      const dbSettings = await prisma.businessSettings.findUnique({
+        where: { id: 'default' },
+      });
+      if (dbSettings) {
+        const mapped: BusinessSettings = {
+          businessName: dbSettings.businessName,
+          logo: dbSettings.logo,
+          whatsappNumber: dbSettings.whatsappNumber,
+          instagramUrl: dbSettings.instagramUrl,
+          email: dbSettings.email,
+          upiId: dbSettings.upiId,
+          upiQrCode: dbSettings.upiQrCode || '',
+          codEnabled: dbSettings.codEnabled,
+          codMinOrder: dbSettings.codMinOrder,
+          codMaxOrder: dbSettings.codMaxOrder,
+          codFee: dbSettings.codFee,
+          shippingCharge: dbSettings.shippingCharge,
+          freeShippingThreshold: dbSettings.freeShippingThreshold,
+          processingTime: dbSettings.processingTime,
+          deliveryTime: dbSettings.deliveryTime,
+          announcementText: dbSettings.announcementText,
+          announcementEnabled: dbSettings.announcementEnabled,
+          businessAddress: dbSettings.businessAddress,
+        };
+        globalRuntime._settings = mapped;
+        return mapped;
+      }
+    } catch (err: any) {
+      console.warn('[getBusinessSettings] Prisma read notice:', err.message);
+    }
+  }
   return globalRuntime._settings || defaultSettings;
 }
 
 export async function updateBusinessSettings(data: Partial<BusinessSettings>): Promise<BusinessSettings> {
-  const current = globalRuntime._settings || defaultSettings;
+  const current = await getBusinessSettings();
   const updated: BusinessSettings = {
     ...current,
     ...data,
@@ -796,20 +1440,21 @@ export async function updateBusinessSettings(data: Partial<BusinessSettings>): P
   };
   globalRuntime._settings = updated;
 
-  try {
-    if (process.env.DATABASE_URL) {
+  if (isDbConfigured()) {
+    try {
       await prisma.businessSettings.upsert({
         where: { id: 'default' },
-        update: {
-          ...data,
-        },
+        update: { ...data },
         create: {
           id: 'default',
           ...updated,
         },
       });
+    } catch (err: any) {
+      console.error('[updateBusinessSettings] Failed to save settings to database:', err.message);
+      throw new Error(`Failed to save settings to database: ${err.message}`);
     }
-  } catch {}
+  }
 
   return updated;
 }
@@ -818,6 +1463,36 @@ export async function updateBusinessSettings(data: Partial<BusinessSettings>): P
 // BANNERS SERVICE
 // ============================================
 export async function getAllBanners(): Promise<Banner[]> {
+  if (isDbConfigured()) {
+    try {
+      await autoSeedDatabase();
+      const dbBanners = await prisma.banner.findMany({
+        orderBy: { sortOrder: 'asc' },
+      });
+      if (dbBanners && dbBanners.length > 0) {
+        const mapped: Banner[] = dbBanners.map((b: any) => ({
+          id: b.id,
+          title: b.title,
+          subtitle: b.subtitle || undefined,
+          imageUrl: b.imageUrl,
+          mobileImageUrl: b.mobileImageUrl || undefined,
+          buttonText: b.buttonText || undefined,
+          buttonLink: b.buttonLink || undefined,
+          position: (b.position as any) || 'hero',
+          isActive: b.isActive,
+          sortOrder: b.sortOrder,
+          startDate: b.startDate ? (b.startDate instanceof Date ? b.startDate.toISOString() : b.startDate) : undefined,
+          endDate: b.endDate ? (b.endDate instanceof Date ? b.endDate.toISOString() : b.endDate) : undefined,
+          createdAt: b.createdAt instanceof Date ? b.createdAt.toISOString() : b.createdAt,
+          updatedAt: b.updatedAt instanceof Date ? b.updatedAt.toISOString() : b.updatedAt,
+        }));
+        globalRuntime._banners = mapped;
+        return mapped;
+      }
+    } catch (err: any) {
+      console.warn('[getAllBanners] Prisma read notice:', err.message);
+    }
+  }
   if (!globalRuntime._banners || globalRuntime._banners.length === 0) {
     globalRuntime._banners = [...defaultBanners];
   }
@@ -850,8 +1525,8 @@ export async function saveBanner(bannerData: Partial<Banner> & { title: string; 
     globalRuntime._banners = [newBanner, ...list];
   }
 
-  try {
-    if (process.env.DATABASE_URL) {
+  if (isDbConfigured()) {
+    try {
       await prisma.banner.upsert({
         where: { id: newBanner.id },
         update: {
@@ -878,19 +1553,25 @@ export async function saveBanner(bannerData: Partial<Banner> & { title: string; 
           sortOrder: newBanner.sortOrder,
         },
       });
+    } catch (err: any) {
+      console.error('[saveBanner] Failed to save banner to database:', err.message);
+      throw new Error(`Failed to save banner to database: ${err.message}`);
     }
-  } catch {}
+  }
 
   return newBanner;
 }
 
 export async function deleteBanner(id: string): Promise<boolean> {
   globalRuntime._banners = (globalRuntime._banners || []).filter((b) => b.id !== id);
-  try {
-    if (process.env.DATABASE_URL) {
+  if (isDbConfigured()) {
+    try {
       await prisma.banner.delete({ where: { id } });
+    } catch (err: any) {
+      console.error('[deleteBanner] Failed to delete banner from database:', err.message);
+      throw new Error(`Failed to delete banner from database: ${err.message}`);
     }
-  } catch {}
+  }
   return true;
 }
 
@@ -898,6 +1579,35 @@ export async function deleteBanner(id: string): Promise<boolean> {
 // COUPONS SERVICE
 // ============================================
 export async function getAllCoupons(): Promise<Coupon[]> {
+  if (isDbConfigured()) {
+    try {
+      await autoSeedDatabase();
+      const dbCoupons = await prisma.coupon.findMany({
+        orderBy: { createdAt: 'desc' },
+      });
+      if (dbCoupons && dbCoupons.length > 0) {
+        const mapped: Coupon[] = dbCoupons.map((c: any) => ({
+          id: c.id,
+          code: c.code,
+          description: c.description || undefined,
+          discountType: (c.discountType as any) || 'PERCENTAGE',
+          discountValue: c.discountValue,
+          minOrderAmount: c.minOrderAmount,
+          maxDiscount: c.maxDiscount || undefined,
+          expiryDate: c.expiryDate ? (c.expiryDate instanceof Date ? c.expiryDate.toISOString() : c.expiryDate) : undefined,
+          usageLimit: c.usageLimit || undefined,
+          usedCount: c.usedCount || 0,
+          isActive: c.isActive,
+          createdAt: c.createdAt instanceof Date ? c.createdAt.toISOString() : c.createdAt,
+          updatedAt: c.updatedAt instanceof Date ? c.updatedAt.toISOString() : c.updatedAt,
+        }));
+        globalRuntime._coupons = mapped;
+        return mapped;
+      }
+    } catch (err: any) {
+      console.warn('[getAllCoupons] Prisma read notice:', err.message);
+    }
+  }
   if (!globalRuntime._coupons || globalRuntime._coupons.length === 0) {
     globalRuntime._coupons = [...defaultCoupons];
   }
@@ -930,13 +1640,13 @@ export async function saveCoupon(couponData: Partial<Coupon> & { code: string; d
     globalRuntime._coupons = [newCoupon, ...list];
   }
 
-  try {
-    if (process.env.DATABASE_URL) {
+  if (isDbConfigured()) {
+    try {
       await prisma.coupon.upsert({
         where: { code },
         update: {
           description: newCoupon.description,
-          discountType: newCoupon.discountType as unknown as any,
+          discountType: newCoupon.discountType as any,
           discountValue: newCoupon.discountValue,
           minOrderAmount: newCoupon.minOrderAmount,
           maxDiscount: newCoupon.maxDiscount,
@@ -945,26 +1655,32 @@ export async function saveCoupon(couponData: Partial<Coupon> & { code: string; d
         create: {
           code,
           description: newCoupon.description,
-          discountType: newCoupon.discountType as unknown as any,
+          discountType: newCoupon.discountType as any,
           discountValue: newCoupon.discountValue,
           minOrderAmount: newCoupon.minOrderAmount,
           maxDiscount: newCoupon.maxDiscount,
           isActive: newCoupon.isActive,
         },
       });
+    } catch (err: any) {
+      console.error('[saveCoupon] Failed to save coupon to database:', err.message);
+      throw new Error(`Failed to save coupon to database: ${err.message}`);
     }
-  } catch {}
+  }
 
   return newCoupon;
 }
 
 export async function deleteCoupon(id: string): Promise<boolean> {
   globalRuntime._coupons = (globalRuntime._coupons || []).filter((c) => c.id !== id && c.code !== id);
-  try {
-    if (process.env.DATABASE_URL) {
+  if (isDbConfigured()) {
+    try {
       await prisma.coupon.delete({ where: { id } });
+    } catch (err: any) {
+      console.error('[deleteCoupon] Failed to delete coupon from database:', err.message);
+      throw new Error(`Failed to delete coupon from database: ${err.message}`);
     }
-  } catch {}
+  }
   return true;
 }
 
@@ -1018,13 +1734,85 @@ export async function validateCouponCode(code: string, orderSubtotal: number): P
 // HOMEPAGE CONFIG SERVICE
 // ============================================
 export async function getHomepageConfig(): Promise<HomepageConfig> {
+  if (isDbConfigured()) {
+    try {
+      await autoSeedDatabase();
+      const dbConfig = await prisma.homepageConfig.findUnique({
+        where: { id: 'default' },
+      });
+      if (dbConfig) {
+        const mapped: HomepageConfig = {
+          id: dbConfig.id,
+          heroHeading: dbConfig.heroHeading,
+          heroSubtitle: dbConfig.heroSubtitle,
+          heroDescription: dbConfig.heroDescription,
+          heroButtonText: dbConfig.heroButtonText,
+          heroButtonLink: dbConfig.heroButtonLink,
+          heroImage: dbConfig.heroImage,
+          heroEnabled: dbConfig.heroEnabled,
+          featuredCategories: Array.isArray(dbConfig.featuredCategories) ? dbConfig.featuredCategories : [],
+          featuredProducts: Array.isArray(dbConfig.featuredProducts) ? dbConfig.featuredProducts : [],
+          bestSellers: Array.isArray(dbConfig.bestSellers) ? dbConfig.bestSellers : [],
+          newArrivals: Array.isArray(dbConfig.newArrivals) ? dbConfig.newArrivals : [],
+          updatedAt: dbConfig.updatedAt instanceof Date ? dbConfig.updatedAt.toISOString() : (dbConfig.updatedAt || new Date().toISOString()),
+        };
+        globalRuntime._homepageConfig = mapped;
+        return mapped;
+      }
+    } catch (err: any) {
+      console.warn('[getHomepageConfig] Prisma read notice:', err.message);
+    }
+  }
   return globalRuntime._homepageConfig || defaultHomepageConfig;
 }
 
 export async function updateHomepageConfig(data: Partial<HomepageConfig>): Promise<HomepageConfig> {
-  const current = globalRuntime._homepageConfig || defaultHomepageConfig;
-  const updated = { ...current, ...data, updatedAt: new Date().toISOString() };
+  const current = await getHomepageConfig();
+  const updated: HomepageConfig = {
+    ...current,
+    ...data,
+    updatedAt: new Date().toISOString(),
+  };
   globalRuntime._homepageConfig = updated;
+
+  if (isDbConfigured()) {
+    try {
+      await prisma.homepageConfig.upsert({
+        where: { id: 'default' },
+        update: {
+          heroHeading: updated.heroHeading,
+          heroSubtitle: updated.heroSubtitle,
+          heroDescription: updated.heroDescription,
+          heroButtonText: updated.heroButtonText,
+          heroButtonLink: updated.heroButtonLink,
+          heroImage: updated.heroImage,
+          heroEnabled: updated.heroEnabled,
+          featuredCategories: updated.featuredCategories || [],
+          featuredProducts: updated.featuredProducts || [],
+          bestSellers: updated.bestSellers || [],
+          newArrivals: updated.newArrivals || [],
+        },
+        create: {
+          id: 'default',
+          heroHeading: updated.heroHeading,
+          heroSubtitle: updated.heroSubtitle,
+          heroDescription: updated.heroDescription,
+          heroButtonText: updated.heroButtonText,
+          heroButtonLink: updated.heroButtonLink,
+          heroImage: updated.heroImage,
+          heroEnabled: updated.heroEnabled,
+          featuredCategories: updated.featuredCategories || [],
+          featuredProducts: updated.featuredProducts || [],
+          bestSellers: updated.bestSellers || [],
+          newArrivals: updated.newArrivals || [],
+        },
+      });
+    } catch (err: any) {
+      console.error('[updateHomepageConfig] Failed to persist homepage to database:', err.message);
+      throw new Error(`Failed to persist homepage configuration to database: ${err.message}`);
+    }
+  }
+
   return updated;
 }
 
@@ -1032,6 +1820,31 @@ export async function updateHomepageConfig(data: Partial<HomepageConfig>): Promi
 // REVIEWS SERVICE
 // ============================================
 export async function getAllReviews(): Promise<Review[]> {
+  if (isDbConfigured()) {
+    try {
+      await autoSeedDatabase();
+      const dbReviews = await prisma.review.findMany({
+        orderBy: { createdAt: 'desc' },
+      });
+      if (dbReviews && dbReviews.length > 0) {
+        const mapped: Review[] = dbReviews.map((r: any) => ({
+          id: r.id,
+          customerName: r.customerName,
+          rating: r.rating,
+          review: r.review,
+          productId: r.productId || undefined,
+          verified: r.verified,
+          isFeatured: r.isFeatured,
+          isVisible: r.isVisible,
+          date: r.createdAt instanceof Date ? r.createdAt.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : 'Recent',
+        }));
+        globalRuntime._reviews = mapped;
+        return mapped;
+      }
+    } catch (err: any) {
+      console.warn('[getAllReviews] Prisma read notice:', err.message);
+    }
+  }
   if (!globalRuntime._reviews || globalRuntime._reviews.length === 0) {
     globalRuntime._reviews = [...seedReviews];
   }
@@ -1045,11 +1858,36 @@ export async function updateReviewStatus(id: string, updates: Partial<Review>): 
 
   const updated = { ...list[idx], ...updates };
   list[idx] = updated;
+
+  if (isDbConfigured()) {
+    try {
+      await prisma.review.update({
+        where: { id },
+        data: {
+          isFeatured: updates.isFeatured,
+          isVisible: updates.isVisible,
+          verified: updates.verified,
+        },
+      });
+    } catch (err: any) {
+      console.error('[updateReviewStatus] Failed to update review in database:', err.message);
+      throw new Error(`Failed to update review in database: ${err.message}`);
+    }
+  }
+
   return updated;
 }
 
 export async function deleteReview(id: string): Promise<boolean> {
   globalRuntime._reviews = (globalRuntime._reviews || []).filter((r) => r.id !== id);
+  if (isDbConfigured()) {
+    try {
+      await prisma.review.delete({ where: { id } });
+    } catch (err: any) {
+      console.error('[deleteReview] Failed to delete review from database:', err.message);
+      throw new Error(`Failed to delete review from database: ${err.message}`);
+    }
+  }
   return true;
 }
 
@@ -1057,10 +1895,36 @@ export async function deleteReview(id: string): Promise<boolean> {
 // USERS & ADMIN SERVICE
 // ============================================
 export async function getAllUsers(): Promise<User[]> {
+  if (isDbConfigured()) {
+    try {
+      await autoSeedDatabase();
+      const dbUsers = await prisma.user.findMany({
+        orderBy: { createdAt: 'desc' },
+      });
+      if (dbUsers && dbUsers.length > 0) {
+        const mapped: User[] = dbUsers.map((u: any) => ({
+          id: u.id,
+          firebaseUid: u.firebaseUid || undefined,
+          fullName: u.fullName,
+          email: u.email || undefined,
+          mobile: u.mobile || undefined,
+          passwordHash: u.passwordHash || undefined,
+          role: u.role as any,
+          status: u.status as any,
+          createdAt: u.createdAt instanceof Date ? u.createdAt.toISOString() : u.createdAt,
+          updatedAt: u.updatedAt instanceof Date ? u.updatedAt.toISOString() : u.updatedAt,
+        }));
+        globalRuntime._users = mapped;
+        return mapped;
+      }
+    } catch (err: any) {
+      console.warn('[getAllUsers] Prisma read notice:', err.message);
+    }
+  }
+
   if (!globalRuntime._users || globalRuntime._users.length === 0) {
     globalRuntime._users = [...defaultUsers];
   } else {
-    // Ensure all default superadmins & staff exist and have updated credentials
     for (const defU of defaultUsers) {
       const existingIdx = globalRuntime._users.findIndex(
         (u) => (u.email || '').toLowerCase() === (defU.email || '').toLowerCase()
@@ -1068,7 +1932,6 @@ export async function getAllUsers(): Promise<User[]> {
       if (existingIdx === -1) {
         globalRuntime._users.push(defU);
       } else {
-        // Sync password hash from defaultUsers definition
         globalRuntime._users[existingIdx].passwordHash = defU.passwordHash;
         globalRuntime._users[existingIdx].role = defU.role;
         globalRuntime._users[existingIdx].fullName = defU.fullName;
@@ -1096,6 +1959,33 @@ export async function saveUser(userData: Partial<User> & { email: string; fullNa
     list[idx] = { ...list[idx], ...newUser };
   } else {
     globalRuntime._users = [newUser, ...list];
+  }
+
+  if (isDbConfigured()) {
+    try {
+      await prisma.user.upsert({
+        where: { email: newUser.email },
+        update: {
+          fullName: newUser.fullName,
+          mobile: newUser.mobile,
+          role: newUser.role as any,
+          status: newUser.status as any,
+          ...(newUser.passwordHash ? { passwordHash: newUser.passwordHash } : {}),
+        },
+        create: {
+          id: newUser.id,
+          fullName: newUser.fullName,
+          email: newUser.email,
+          mobile: newUser.mobile,
+          passwordHash: newUser.passwordHash,
+          role: newUser.role as any,
+          status: newUser.status as any,
+        },
+      });
+    } catch (err: any) {
+      console.error('[saveUser] Failed to save user in database:', err.message);
+      throw new Error(`Failed to save user in database: ${err.message}`);
+    }
   }
 
   return newUser;
@@ -1154,8 +2044,8 @@ export async function createCustomerWithEmail(data: {
   const list = globalRuntime._users || [];
   globalRuntime._users = [newCustomer, ...list];
 
-  try {
-    if (process.env.DATABASE_URL) {
+  if (isDbConfigured()) {
+    try {
       await prisma.user.create({
         data: {
           id: newCustomer.id,
@@ -1167,8 +2057,10 @@ export async function createCustomerWithEmail(data: {
           status: 'ACTIVE',
         },
       });
+    } catch (err: any) {
+      console.warn('[createCustomerWithEmail] Notice:', err.message);
     }
-  } catch {}
+  }
 
   return newCustomer;
 }
@@ -1181,8 +2073,8 @@ export async function updateUserPassword(userId: string, passwordHash: string): 
   user.passwordHash = passwordHash;
   user.updatedAt = new Date().toISOString();
 
-  try {
-    if (process.env.DATABASE_URL) {
+  if (isDbConfigured()) {
+    try {
       await prisma.user.update({
         where: { id: user.id },
         data: {
@@ -1190,8 +2082,10 @@ export async function updateUserPassword(userId: string, passwordHash: string): 
           updatedAt: new Date(),
         },
       });
+    } catch (err: any) {
+      console.warn('[updateUserPassword] Notice:', err.message);
     }
-  } catch {}
+  }
 
   return true;
 }
@@ -1211,8 +2105,8 @@ export async function savePasswordResetToken(
     { email: cleanEmail, tokenHash, expiresAt, userId, usedAt: undefined },
   ];
 
-  try {
-    if (process.env.DATABASE_URL) {
+  if (isDbConfigured()) {
+    try {
       await (prisma as any).passwordResetToken.create({
         data: {
           email: cleanEmail,
@@ -1221,8 +2115,10 @@ export async function savePasswordResetToken(
           userId: userId || undefined,
         },
       });
+    } catch (err: any) {
+      console.warn('[savePasswordResetToken] Notice:', err.message);
     }
-  } catch {}
+  }
 }
 
 export async function verifyAndConsumeResetToken(
@@ -1234,9 +2130,8 @@ export async function verifyAndConsumeResetToken(
     (t) => t.tokenHash === tokenHash && t.expiresAt > now && !t.usedAt
   );
 
-  // Also check Prisma if available
-  try {
-    if (process.env.DATABASE_URL) {
+  if (isDbConfigured()) {
+    try {
       const dbToken = await (prisma as any).passwordResetToken.findUnique({
         where: { tokenHash },
       });
@@ -1250,15 +2145,16 @@ export async function verifyAndConsumeResetToken(
         }
         return { valid: true, email: dbToken.email, userId: dbToken.userId };
       }
+    } catch (err: any) {
+      console.warn('[verifyAndConsumeResetToken] Notice:', err.message);
     }
-  } catch {}
+  }
 
   if (foundIdx === -1) {
     return { valid: false };
   }
 
   const record = list[foundIdx];
-  // Mark consumed / single use
   record.usedAt = now;
   globalRuntime._passwordResetTokens = list.filter((t) => t.tokenHash !== tokenHash);
 
@@ -1276,10 +2172,8 @@ export async function findOrCreateCustomerByFirebase(data: {
   const digitsOnly = rawMobile.replace(/\D/g, '');
   const mobile = digitsOnly.length >= 10 ? digitsOnly.slice(-10) : digitsOnly;
 
-  // 1. Find by firebaseUid first
   let existing = users.find((u) => u.firebaseUid === data.firebaseUid);
 
-  // 2. Or find by mobile number
   if (!existing && mobile) {
     existing = users.find((u) => {
       const uDigits = (u.mobile || '').replace(/\D/g, '');
@@ -1288,7 +2182,6 @@ export async function findOrCreateCustomerByFirebase(data: {
     });
   }
 
-  // 3. Or find by email if available
   if (!existing && data.email) {
     existing = users.find((u) => u.email && u.email.toLowerCase() === data.email?.toLowerCase());
   }
@@ -1296,7 +2189,6 @@ export async function findOrCreateCustomerByFirebase(data: {
   const now = new Date().toISOString();
 
   if (existing) {
-    // Update existing customer record with firebaseUid or name if missing
     existing.firebaseUid = existing.firebaseUid || data.firebaseUid;
     if (data.fullName && (!existing.fullName || existing.fullName === 'Valued Customer')) {
       existing.fullName = data.fullName.trim();
@@ -1306,8 +2198,8 @@ export async function findOrCreateCustomerByFirebase(data: {
     }
     existing.updatedAt = now;
 
-    try {
-      if (process.env.DATABASE_URL) {
+    if (isDbConfigured()) {
+      try {
         await prisma.user.update({
           where: { id: existing.id },
           data: {
@@ -1317,13 +2209,14 @@ export async function findOrCreateCustomerByFirebase(data: {
             updatedAt: new Date(),
           },
         });
+      } catch (err: any) {
+        console.warn('[findOrCreateCustomerByFirebase] Update notice:', err.message);
       }
-    } catch {}
+    }
 
     return existing;
   }
 
-  // Create new customer
   const newCustomer: User = {
     id: 'usr_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6),
     firebaseUid: data.firebaseUid,
@@ -1339,8 +2232,8 @@ export async function findOrCreateCustomerByFirebase(data: {
   const list = globalRuntime._users || [];
   globalRuntime._users = [newCustomer, ...list];
 
-  try {
-    if (process.env.DATABASE_URL) {
+  if (isDbConfigured()) {
+    try {
       await prisma.user.create({
         data: {
           id: newCustomer.id,
@@ -1352,8 +2245,10 @@ export async function findOrCreateCustomerByFirebase(data: {
           status: 'ACTIVE',
         },
       });
+    } catch (err: any) {
+      console.warn('[findOrCreateCustomerByFirebase] Create notice:', err.message);
     }
-  } catch {}
+  }
 
   return newCustomer;
 }
@@ -1371,8 +2266,8 @@ export async function updateCustomerProfile(
   if (updates.mobile?.trim()) user.mobile = updates.mobile.trim();
   user.updatedAt = new Date().toISOString();
 
-  try {
-    if (process.env.DATABASE_URL) {
+  if (isDbConfigured()) {
+    try {
       await prisma.user.update({
         where: { id: user.id },
         data: {
@@ -1382,14 +2277,24 @@ export async function updateCustomerProfile(
           updatedAt: new Date(),
         },
       });
+    } catch (err: any) {
+      console.warn('[updateCustomerProfile] Notice:', err.message);
     }
-  } catch {}
+  }
 
   return user;
 }
 
 export async function deleteUser(id: string): Promise<boolean> {
   globalRuntime._users = (globalRuntime._users || []).filter((u) => u.id !== id);
+  if (isDbConfigured()) {
+    try {
+      await prisma.user.delete({ where: { id } });
+    } catch (err: any) {
+      console.error('[deleteUser] Failed to delete user from database:', err.message);
+      throw new Error(`Failed to delete user from database: ${err.message}`);
+    }
+  }
   return true;
 }
 

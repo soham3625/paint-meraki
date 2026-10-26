@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getAllReviews, updateReviewStatus, deleteReview, logActivity } from '@/lib/services/db-service';
 import { verifyAdminApiAccess } from '@/lib/auth/admin-auth';
+import { revalidatePath } from 'next/cache';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
   const auth = await verifyAdminApiAccess('STAFF');
@@ -29,6 +32,10 @@ export async function PUT(req: Request) {
 
     await logActivity(session.email, session.name, 'REVIEW_UPDATED', 'Review', `Updated review by ${updated.customerName}`, id);
 
+    revalidatePath('/');
+    revalidatePath('/reviews');
+    revalidatePath('/api/reviews');
+
     return NextResponse.json({ success: true, review: updated });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Failed to update review' }, { status: 500 });
@@ -51,6 +58,10 @@ export async function DELETE(req: Request) {
     await deleteReview(id);
 
     await logActivity(session.email, session.name, 'REVIEW_DELETED', 'Review', `Deleted review #${id}`, id);
+
+    revalidatePath('/');
+    revalidatePath('/reviews');
+    revalidatePath('/api/reviews');
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

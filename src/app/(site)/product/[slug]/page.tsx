@@ -53,9 +53,9 @@ export default function ProductDetailPage() {
     async function fetchLiveProductData() {
       try {
         const [pRes, rRes, sRes] = await Promise.all([
-          fetch('/api/admin/products'),
-          fetch('/api/admin/reviews'),
-          fetch('/api/admin/settings'),
+          fetch('/api/products'),
+          fetch('/api/reviews'),
+          fetch('/api/settings'),
         ]);
 
         if (pRes.ok) {

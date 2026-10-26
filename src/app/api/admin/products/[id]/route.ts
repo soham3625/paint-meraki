@@ -37,6 +37,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     revalidatePath('/shop');
     revalidatePath(`/shop/${saved.categorySlug}`);
     revalidatePath(`/product/${saved.slug}`);
+    revalidatePath('/api/products');
 
     return NextResponse.json({ success: true, product: saved });
   } catch (error: any) {
@@ -64,6 +65,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
 
     revalidatePath('/');
     revalidatePath('/shop');
+    revalidatePath('/api/products');
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

@@ -35,12 +35,13 @@ export default function HomePage() {
   const [categoriesList, setCategoriesList] = useState<Category[]>(defaultCategories);
   const [reviewsList, setReviewsList] = useState<Review[]>(defaultReviews);
   const [homepageConfig, setHomepageConfig] = useState<Partial<HomepageConfig>>({
-    heroHeading: 'Art from the heart,',
-    heroSubtitle: 'made just for you.',
-    heroDescription: 'Handcrafted resin art, personalised decor and meaningful creations made with love and attention to every detail.',
-    heroButtonText: 'Shop Collection',
+    heroHeading: 'Art That Speaks to Your Soul',
+    heroSubtitle: 'Handcrafted Resin Masterpieces & Custom Decor',
+    heroDescription: 'Every piece at paint_n_meraki is meticulously handcrafted with love, precision, and artistic passion by Astha Patel.',
+    heroButtonText: 'Explore Collection',
     heroButtonLink: '/shop',
-    heroImage: '/circle.png',
+    heroImage: '/images/categories/clock-2.jpg',
+    heroEnabled: true,
   });
   const [settings, setSettings] = useState<Partial<BusinessSettings>>({
     whatsappNumber: '919878541310',
@@ -49,15 +50,15 @@ export default function HomePage() {
   const [reviewIndex, setReviewIndex] = useState(0);
 
   useEffect(() => {
-    // Synchronize live data from Admin Panel
+    // Synchronize live data from Public Storefront Endpoints
     async function loadLiveData() {
       try {
         const [prodsRes, catsRes, revsRes, homeRes, settRes] = await Promise.all([
-          fetch('/api/admin/products'),
-          fetch('/api/admin/categories'),
-          fetch('/api/admin/reviews'),
-          fetch('/api/admin/homepage'),
-          fetch('/api/admin/settings'),
+          fetch('/api/products'),
+          fetch('/api/categories'),
+          fetch('/api/reviews'),
+          fetch('/api/homepage'),
+          fetch('/api/settings'),
         ]);
 
         if (prodsRes.ok) {
@@ -75,14 +76,14 @@ export default function HomePage() {
         if (revsRes.ok) {
           const revsData = await revsRes.json();
           if (Array.isArray(revsData) && revsData.length > 0) {
-            const approved = revsData.filter((r: Review) => !r.status || r.status === 'APPROVED');
-            if (approved.length > 0) setReviewsList(approved);
+            setReviewsList(revsData);
           }
         }
         if (homeRes.ok) {
           const homeData = await homeRes.json();
-          if (homeData && homeData.heroHeading) {
-            setHomepageConfig(homeData);
+          const liveConfig = homeData.config || homeData;
+          if (liveConfig && liveConfig.heroHeading) {
+            setHomepageConfig(liveConfig);
           }
         }
         if (settRes.ok) {
@@ -90,7 +91,7 @@ export default function HomePage() {
           if (settData) setSettings(settData);
         }
       } catch (err) {
-        // Fallback to static defaults
+        // Fallback to defaults
       }
     }
 
