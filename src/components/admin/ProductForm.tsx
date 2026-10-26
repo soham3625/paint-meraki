@@ -30,6 +30,16 @@ interface ProductFormProps {
   isEdit?: boolean;
 }
 
+function cleanImagePath(val: string): string {
+  if (!val) return '';
+  const trimmed = val.trim();
+  if (trimmed.startsWith('data:') || trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed;
+  }
+  const clean = trimmed.replace(/^\/?public\//, '/');
+  return clean.startsWith('/') ? clean : `/${clean}`;
+}
+
 export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
   const router = useRouter();
   const [categories, setCategories] = useState<Category[]>([]);
@@ -127,7 +137,7 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
       });
       const data = await res.json();
       if (data.success && data.url) {
-        setImages((prev) => [...prev, data.url]);
+        setImages((prev) => [...prev, cleanImagePath(data.url)]);
         toast.success('Image uploaded successfully');
       } else {
         toast.error(data.error || 'Upload failed');
@@ -141,7 +151,7 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
 
   const handleAddImageUrl = () => {
     if (!customImageUrl.trim()) return;
-    setImages((prev) => [...prev, customImageUrl.trim()]);
+    setImages((prev) => [...prev, cleanImagePath(customImageUrl.trim())]);
     setCustomImageUrl('');
   };
 
@@ -202,8 +212,8 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
       stock: Number(stock),
       sku,
       sizes,
-      images,
-      thumbnail: images[0],
+      images: images.map(cleanImagePath),
+      thumbnail: cleanImagePath(images[0]),
       material,
       dimensions,
       weight,
@@ -380,12 +390,13 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                   key={idx}
                   className="relative group rounded-xl overflow-hidden aspect-square border-2 border-[#EAE3D6] bg-stone-50"
                 >
-                  <Image
-                    src={imgUrl}
+                  <img
+                    src={cleanImagePath(imgUrl)}
                     alt={`Product image ${idx + 1}`}
-                    fill
-                    className="object-cover"
-                    sizes="120px"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = '/images/categories/clock-2.jpg';
+                    }}
                   />
                   {idx === 0 && (
                     <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-[#D4AF37] text-white text-[9px] font-bold shadow-xs">

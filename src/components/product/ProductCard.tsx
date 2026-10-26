@@ -12,6 +12,16 @@ import { useWishlistStore } from '@/lib/store/wishlist-store';
 import type { Product } from '@/types';
 import Rating from '@/components/ui/Rating';
 
+function cleanImagePath(val?: string): string {
+  if (!val) return '';
+  const trimmed = val.trim();
+  if (trimmed.startsWith('data:') || trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed;
+  }
+  const clean = trimmed.replace(/^\/?public\//, '/');
+  return clean.startsWith('/') ? clean : `/${clean}`;
+}
+
 interface ProductCardProps {
   product: Product;
 }
@@ -33,6 +43,8 @@ export default function ProductCard({ product }: ProductCardProps) {
     toggleWishlist(product);
   };
 
+  const thumbSrc = cleanImagePath(product.thumbnail);
+
   return (
     <Link
       href={`/product/${product.slug}`}
@@ -41,9 +53,9 @@ export default function ProductCard({ product }: ProductCardProps) {
       <div className="relative">
         {/* Image */}
         <div className="product-card-image rounded-2xl bg-beige/30 aspect-square relative overflow-hidden">
-          {product.thumbnail && !product.thumbnail.includes('placeholder') ? (
+          {thumbSrc && !thumbSrc.includes('placeholder') ? (
             <img
-              src={product.thumbnail}
+              src={thumbSrc}
               alt={product.name}
               className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
               onError={(e) => {
