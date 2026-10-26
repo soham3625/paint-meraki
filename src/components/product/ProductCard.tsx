@@ -12,15 +12,7 @@ import { useWishlistStore } from '@/lib/store/wishlist-store';
 import type { Product } from '@/types';
 import Rating from '@/components/ui/Rating';
 
-function cleanImagePath(val?: string): string {
-  if (!val) return '';
-  const trimmed = val.trim();
-  if (trimmed.startsWith('data:') || trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-    return trimmed;
-  }
-  const clean = trimmed.replace(/^\/?public\//, '/');
-  return clean.startsWith('/') ? clean : `/${clean}`;
-}
+import { cleanImagePath } from '@/lib/image-utils';
 
 interface ProductCardProps {
   product: Product;

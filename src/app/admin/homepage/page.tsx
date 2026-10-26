@@ -2,10 +2,11 @@
 
 // ============================================
 // paint_n_meraki — ADMIN HOMEPAGE MANAGER
+// Live Showcase Customizer for Hero, Section 2 (Resin Clocks),
+// Section 3 (Pooja Thalis), Curated Products & Categories
 // ============================================
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
 import {
   Home,
   Save,
@@ -17,20 +18,11 @@ import {
   Check,
   RefreshCw,
   Clock,
+  Sparkle,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { cleanImagePath } from '@/lib/image-utils';
 import type { HomepageConfig, Product, Category } from '@/types';
-
-// Helper to sanitize and normalize image paths entered by users
-function cleanImagePath(val: string): string {
-  if (!val) return '';
-  const trimmed = val.trim();
-  if (trimmed.startsWith('data:') || trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-    return trimmed;
-  }
-  const clean = trimmed.replace(/^\/?public\//, '/');
-  return clean.startsWith('/') ? clean : `/${clean}`;
-}
 
 export default function AdminHomepageManagerPage() {
   const [config, setConfig] = useState<HomepageConfig | null>(null);
@@ -51,6 +43,9 @@ export default function AdminHomepageManagerPage() {
   // Section 2 Spotlight Image (Resin Clocks)
   const [resinClocksImage, setResinClocksImage] = useState('');
 
+  // Section 3 Spotlight Image (Pooja Thalis)
+  const [poojaThalisImage, setPoojaThalisImage] = useState('');
+
   // Curated Slugs
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [featuredProducts, setFeaturedProducts] = useState<string[]>([]);
@@ -61,9 +56,9 @@ export default function AdminHomepageManagerPage() {
     async function load() {
       try {
         const [hRes, pRes, cRes] = await Promise.all([
-          fetch('/api/admin/homepage'),
-          fetch('/api/admin/products'),
-          fetch('/api/admin/categories'),
+          fetch('/api/admin/homepage', { cache: 'no-store' }),
+          fetch('/api/admin/products', { cache: 'no-store' }),
+          fetch('/api/admin/categories', { cache: 'no-store' }),
         ]);
 
         if (hRes.ok) {
@@ -74,9 +69,10 @@ export default function AdminHomepageManagerPage() {
           setHeroDescription(data.heroDescription || 'Every piece at paint_n_meraki is meticulously handcrafted with love, precision, and artistic passion by Astha Patel.');
           setHeroButtonText(data.heroButtonText || 'Explore Collection');
           setHeroButtonLink(data.heroButtonLink || '/shop');
-          setHeroImage(data.heroImage || '/images/categories/clock-2.jpg');
+          setHeroImage(cleanImagePath(data.heroImage) || '/circle.png');
           setHeroEnabled(data.heroEnabled !== false);
-          setResinClocksImage(data.resinClocksImage || '/images/products/clock-6.png');
+          setResinClocksImage(cleanImagePath(data.resinClocksImage) || '/images/products/clock-6.png');
+          setPoojaThalisImage(cleanImagePath(data.poojaThalisImage) || '/images/categories/pooja_thali.jpg');
           setSelectedCategories(data.featuredCategories || []);
           setFeaturedProducts(data.featuredProducts || []);
           setBestSellers(data.bestSellers || []);
@@ -94,6 +90,7 @@ export default function AdminHomepageManagerPage() {
     load();
   }, []);
 
+  // Hero Image Upload with Auto-Save
   const handleHeroImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -101,13 +98,20 @@ export default function AdminHomepageManagerPage() {
     const formData = new FormData();
     formData.append('file', file);
 
-    const toastId = toast.loading('Uploading hero image...');
+    const toastId = toast.loading('Uploading and publishing hero image...');
     try {
       const res = await fetch('/api/upload', { method: 'POST', body: formData });
       const data = await res.json();
       if (data.success && data.url) {
-        setHeroImage(cleanImagePath(data.url));
-        toast.success('Hero image updated', { id: toastId });
+        const cleanUrl = cleanImagePath(data.url);
+        setHeroImage(cleanUrl);
+        // Automatically persist to live database immediately
+        await fetch('/api/admin/homepage', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ heroImage: cleanUrl }),
+        });
+        toast.success('Hero image uploaded & published live!', { id: toastId });
       } else {
         toast.error(data.error || 'Upload failed', { id: toastId });
       }
@@ -116,6 +120,7 @@ export default function AdminHomepageManagerPage() {
     }
   };
 
+  // Section 2 Resin Clocks Spotlight Upload with Auto-Save
   const handleResinClocksImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -123,13 +128,50 @@ export default function AdminHomepageManagerPage() {
     const formData = new FormData();
     formData.append('file', file);
 
-    const toastId = toast.loading('Uploading spotlight image...');
+    const toastId = toast.loading('Uploading and publishing spotlight image...');
     try {
       const res = await fetch('/api/upload', { method: 'POST', body: formData });
       const data = await res.json();
       if (data.success && data.url) {
-        setResinClocksImage(cleanImagePath(data.url));
-        toast.success('Resin clocks spotlight image updated', { id: toastId });
+        const cleanUrl = cleanImagePath(data.url);
+        setResinClocksImage(cleanUrl);
+        // Automatically persist to live database immediately
+        await fetch('/api/admin/homepage', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ resinClocksImage: cleanUrl }),
+        });
+        toast.success('Section 2 spotlight image uploaded & published live!', { id: toastId });
+      } else {
+        toast.error(data.error || 'Upload failed', { id: toastId });
+      }
+    } catch (e) {
+      toast.error('Image upload failed', { id: toastId });
+    }
+  };
+
+  // Section 3 Pooja Thalis Spotlight Upload with Auto-Save
+  const handlePoojaThalisImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const toastId = toast.loading('Uploading and publishing pooja thalis image...');
+    try {
+      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (data.success && data.url) {
+        const cleanUrl = cleanImagePath(data.url);
+        setPoojaThalisImage(cleanUrl);
+        // Automatically persist to live database immediately
+        await fetch('/api/admin/homepage', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ poojaThalisImage: cleanUrl }),
+        });
+        toast.success('Pooja Thalis spotlight image uploaded & published live!', { id: toastId });
       } else {
         toast.error(data.error || 'Upload failed', { id: toastId });
       }
@@ -159,6 +201,7 @@ export default function AdminHomepageManagerPage() {
     try {
       const cleanHero = cleanImagePath(heroImage);
       const cleanClocks = cleanImagePath(resinClocksImage);
+      const cleanPooja = cleanImagePath(poojaThalisImage);
 
       const res = await fetch('/api/admin/homepage', {
         method: 'PUT',
@@ -176,6 +219,7 @@ export default function AdminHomepageManagerPage() {
           bestSellers,
           newArrivals,
           resinClocksImage: cleanClocks,
+          poojaThalisImage: cleanPooja,
         }),
       });
 
@@ -184,6 +228,7 @@ export default function AdminHomepageManagerPage() {
         toast.success('Homepage configuration updated live!', { id: toastId });
         if (data.config?.heroImage) setHeroImage(data.config.heroImage);
         if (data.config?.resinClocksImage) setResinClocksImage(data.config.resinClocksImage);
+        if (data.config?.poojaThalisImage) setPoojaThalisImage(data.config.poojaThalisImage);
       } else {
         toast.error(data.error || 'Failed to save configuration', { id: toastId });
       }
@@ -317,16 +362,24 @@ export default function AdminHomepageManagerPage() {
                   value={heroImage}
                   onChange={(e) => setHeroImage(e.target.value)}
                   onBlur={(e) => setHeroImage(cleanImagePath(e.target.value))}
-                  placeholder="/circle.png or /images/categories/clock-2.jpg"
+                  placeholder="/circle.png or /images/categories/circle.png"
                   className="flex-1 px-3.5 py-2 bg-[#F8F5EE] border border-[#EAE3D6] rounded-xl text-xs text-charcoal"
                 />
+                <button
+                  type="button"
+                  onClick={() => setHeroImage(cleanImagePath(heroImage))}
+                  title="Sanitize path format"
+                  className="px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 border border-[#EAE3D6] text-xs font-medium text-charcoal"
+                >
+                  Clean
+                </button>
                 <label className="p-2 rounded-xl bg-amber-50 border border-amber-200 text-[#9B7B1B] hover:bg-amber-100 cursor-pointer flex items-center justify-center transition-colors">
                   <Upload className="w-4 h-4" />
                   <input type="file" accept="image/*" onChange={handleHeroImageUpload} className="hidden" />
                 </label>
               </div>
               <p className="text-[11px] text-taupe mt-1">
-                Enter an image path (e.g. <span className="font-mono text-charcoal">/circle.png</span>) or click the upload icon to upload from your device.
+                Enter an image path (e.g. <span className="font-mono text-charcoal">/circle.png</span>) or click the upload icon to upload from your computer/phone.
               </p>
             </div>
           </div>
@@ -353,9 +406,17 @@ export default function AdminHomepageManagerPage() {
                   value={resinClocksImage}
                   onChange={(e) => setResinClocksImage(e.target.value)}
                   onBlur={(e) => setResinClocksImage(cleanImagePath(e.target.value))}
-                  placeholder="/images/products/clock-6.png or /images/categories/clock-2.jpg"
+                  placeholder="/images/products/clock-6.png or /circle.png"
                   className="flex-1 px-3.5 py-2 bg-[#F8F5EE] border border-[#EAE3D6] rounded-xl text-xs text-charcoal"
                 />
+                <button
+                  type="button"
+                  onClick={() => setResinClocksImage(cleanImagePath(resinClocksImage))}
+                  title="Sanitize path format"
+                  className="px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 border border-[#EAE3D6] text-xs font-medium text-charcoal"
+                >
+                  Clean
+                </button>
                 <label className="p-2 rounded-xl bg-amber-50 border border-amber-200 text-[#9B7B1B] hover:bg-amber-100 cursor-pointer flex items-center justify-center transition-colors">
                   <Upload className="w-4 h-4" />
                   <input type="file" accept="image/*" onChange={handleResinClocksImageUpload} className="hidden" />
@@ -386,11 +447,52 @@ export default function AdminHomepageManagerPage() {
             )}
           </div>
 
-          {/* 3. Featured Categories Picker */}
+          {/* 3. Pooja Thalis Showcase Section */}
+          <div className="bg-white rounded-2xl border border-[#EAE3D6] shadow-xs p-6 space-y-4">
+            <div className="border-b border-[#EAE3D6] pb-3">
+              <h3 className="font-serif text-base font-bold text-charcoal flex items-center gap-2">
+                <Sparkle className="w-4 h-4 text-[#D4AF37]" />
+                3. Pooja Thalis Section Spotlight
+              </h3>
+              <p className="text-xs text-taupe mt-0.5">
+                Controls the spotlight artwork for the &quot;✦ Pooja Thalis / Sacred Moments, Beautifully Crafted&quot; homepage section.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-charcoal uppercase tracking-wider mb-1.5">
+                Pooja Thalis Spotlight Image
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={poojaThalisImage}
+                  onChange={(e) => setPoojaThalisImage(e.target.value)}
+                  onBlur={(e) => setPoojaThalisImage(cleanImagePath(e.target.value))}
+                  placeholder="/images/categories/pooja_thali.jpg"
+                  className="flex-1 px-3.5 py-2 bg-[#F8F5EE] border border-[#EAE3D6] rounded-xl text-xs text-charcoal"
+                />
+                <button
+                  type="button"
+                  onClick={() => setPoojaThalisImage(cleanImagePath(poojaThalisImage))}
+                  title="Sanitize path format"
+                  className="px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 border border-[#EAE3D6] text-xs font-medium text-charcoal"
+                >
+                  Clean
+                </button>
+                <label className="p-2 rounded-xl bg-amber-50 border border-amber-200 text-[#9B7B1B] hover:bg-amber-100 cursor-pointer flex items-center justify-center transition-colors">
+                  <Upload className="w-4 h-4" />
+                  <input type="file" accept="image/*" onChange={handlePoojaThalisImageUpload} className="hidden" />
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* 4. Featured Categories Picker */}
           <div className="bg-white rounded-2xl border border-[#EAE3D6] shadow-xs p-6 space-y-4">
             <h3 className="font-serif text-base font-bold text-charcoal border-b border-[#EAE3D6] pb-3 flex items-center gap-2">
               <Layers className="w-4 h-4 text-[#D4AF37]" />
-              3. Featured Categories on Homepage
+              4. Featured Categories on Homepage
             </h3>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -401,10 +503,11 @@ export default function AdminHomepageManagerPage() {
                     key={c.id}
                     type="button"
                     onClick={() => toggleCategory(c.slug)}
-                    className={`p-3 rounded-xl border text-left text-xs font-semibold transition-all cursor-pointer ${isSelected
-                      ? 'border-[#D4AF37] bg-amber-50/70 text-[#9B7B1B] shadow-xs'
-                      : 'border-[#EAE3D6] bg-[#F8F5EE] text-charcoal hover:bg-stone-100'
-                      }`}
+                    className={`p-3 rounded-xl border text-left text-xs font-semibold transition-all cursor-pointer ${
+                      isSelected
+                        ? 'border-[#D4AF37] bg-amber-50/70 text-[#9B7B1B] shadow-xs'
+                        : 'border-[#EAE3D6] bg-[#F8F5EE] text-charcoal hover:bg-stone-100'
+                    }`}
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className="truncate">{c.name}</span>
@@ -419,11 +522,11 @@ export default function AdminHomepageManagerPage() {
             </div>
           </div>
 
-          {/* 4. Featured Products Curator */}
+          {/* 5. Featured Products Curator */}
           <div className="bg-white rounded-2xl border border-[#EAE3D6] shadow-xs p-6 space-y-4">
             <h3 className="font-serif text-base font-bold text-charcoal border-b border-[#EAE3D6] pb-3 flex items-center gap-2">
               <Package className="w-4 h-4 text-[#D4AF37]" />
-              4. Featured Products Showcase ({featuredProducts.length} selected)
+              5. Featured Products Showcase ({featuredProducts.length} selected)
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-72 overflow-y-auto pr-1 custom-scrollbar">
@@ -434,10 +537,11 @@ export default function AdminHomepageManagerPage() {
                   <div
                     key={p.id}
                     onClick={() => toggleProduct(p.slug, featuredProducts, setFeaturedProducts)}
-                    className={`p-2.5 rounded-xl border flex items-center gap-3 cursor-pointer transition-all ${isSelected
-                      ? 'border-[#D4AF37] bg-amber-50/70 text-charcoal'
-                      : 'border-[#EAE3D6] bg-[#F8F5EE] text-charcoal hover:bg-stone-100'
-                      }`}
+                    className={`p-2.5 rounded-xl border flex items-center gap-3 cursor-pointer transition-all ${
+                      isSelected
+                        ? 'border-[#D4AF37] bg-amber-50/70 text-charcoal'
+                        : 'border-[#EAE3D6] bg-[#F8F5EE] text-charcoal hover:bg-stone-100'
+                    }`}
                   >
                     <div className="relative w-10 h-10 rounded-lg overflow-hidden bg-stone-100 shrink-0">
                       <img
@@ -451,7 +555,7 @@ export default function AdminHomepageManagerPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold truncate">{p.name}</p>
-                      <p className="text-[10px] text-taupe">{p.category}</p>
+                      <p className="text-[10px] text-taupe">₹{p.price.toLocaleString('en-IN')}</p>
                     </div>
                     {isSelected && <Check className="w-4 h-4 text-[#D4AF37] shrink-0" />}
                   </div>
@@ -461,25 +565,26 @@ export default function AdminHomepageManagerPage() {
           </div>
         </div>
 
-        {/* Right 1 Column: Preview & Quick Stats */}
+        {/* Right Column: Previews */}
         <div className="space-y-6">
-          {/* Live Preview 1: Hero Section */}
-          <div className="bg-white rounded-2xl border border-[#EAE3D6] shadow-xs p-6 space-y-4">
-            <h3 className="font-serif text-base font-bold text-charcoal border-b border-[#EAE3D6] pb-3">
-              Hero Section Preview
+          {/* Live Preview 1: Hero Banner */}
+          <div className="bg-white rounded-2xl border border-[#EAE3D6] shadow-xs p-6 space-y-4 sticky top-6">
+            <h3 className="font-serif text-base font-bold text-charcoal border-b border-[#EAE3D6] pb-3 flex items-center justify-between">
+              <span>Hero Section Preview</span>
+              <span className="text-[10px] text-taupe font-mono">1. Hero Section</span>
             </h3>
 
             <div className="rounded-xl overflow-hidden border border-[#EAE3D6] bg-[#1E1B18] text-white p-4 space-y-3">
-              <div className="relative h-28 rounded-lg overflow-hidden bg-stone-800">
+              <div className="relative h-32 rounded-lg overflow-hidden bg-stone-800">
                 <img
-                  src={cleanImagePath(heroImage) || '/images/categories/clock-2.jpg'}
+                  src={cleanImagePath(heroImage) || '/circle.png'}
                   alt="Hero Preview"
-                  className="w-full h-full object-cover opacity-70"
+                  className="w-full h-full object-cover opacity-80"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = '/circle.png';
                   }}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent p-3 flex flex-col justify-end">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent p-3 flex flex-col justify-end">
                   <span className="text-[9px] uppercase tracking-wider text-[#D4AF37] font-bold">
                     {heroSubtitle || 'paint_n_meraki'}
                   </span>
@@ -500,45 +605,38 @@ export default function AdminHomepageManagerPage() {
                 {heroButtonText || 'Explore Collection'}
               </button>
             </div>
-          </div>
 
-          {/* Live Preview 2: Section 2 Resin Clocks Showcase */}
-          <div className="bg-white rounded-2xl border border-[#EAE3D6] shadow-xs p-6 space-y-4">
-            <h3 className="font-serif text-base font-bold text-charcoal border-b border-[#EAE3D6] pb-3 flex items-center justify-between">
-              <span>Section 2 Preview</span>
-              <span className="text-[10px] text-dusty-rose font-mono">✦ Resin Clocks</span>
-            </h3>
-
-            <div className="rounded-xl overflow-hidden border border-[#EAE3D6] bg-[#FAF8F5] p-3.5 space-y-3">
-              <div className="relative aspect-video rounded-lg overflow-hidden bg-stone-200">
-                <img
-                  src={cleanImagePath(resinClocksImage) || '/images/products/clock-6.png'}
-                  alt="Resin Clocks Spotlight Preview"
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = '/images/products/clock-6.png';
-                  }}
-                />
+            {/* Live Preview 2: Section 2 Resin Clocks Showcase */}
+            <div className="border-t border-[#EAE3D6] pt-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="font-serif text-xs font-bold text-charcoal">Section 2 Preview</h4>
+                <span className="text-[9px] text-dusty-rose font-mono">✦ Resin Clocks</span>
               </div>
 
-              <div>
-                <span className="text-[9px] uppercase tracking-wider text-dusty-rose font-bold block">
-                  ✦ Resin Clocks
-                </span>
-                <p className="font-heading text-xs font-bold text-charcoal leading-tight">
-                  Timeless Art for Your Space
-                </p>
-                <p className="text-[10px] text-taupe line-clamp-2 mt-1">
-                  Our handcrafted resin clocks combine functional design with artistic beauty...
-                </p>
-              </div>
+              <div className="rounded-xl overflow-hidden border border-[#EAE3D6] bg-[#FAF8F5] p-3 space-y-2.5">
+                <div className="relative aspect-video rounded-lg overflow-hidden bg-stone-200">
+                  <img
+                    src={cleanImagePath(resinClocksImage) || '/images/products/clock-6.png'}
+                    alt="Resin Clocks Spotlight Preview"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = '/images/products/clock-6.png';
+                    }}
+                  />
+                </div>
 
-              <button
-                type="button"
-                className="w-full py-1.5 rounded-lg bg-charcoal text-white font-medium text-[10px]"
-              >
-                Explore Resin Clocks →
-              </button>
+                <div>
+                  <span className="text-[9px] uppercase tracking-wider text-dusty-rose font-bold block">
+                    ✦ Resin Clocks
+                  </span>
+                  <p className="font-heading text-xs font-bold text-charcoal leading-tight">
+                    Timeless Art for Your Space
+                  </p>
+                  <p className="text-[10px] text-taupe line-clamp-2 mt-0.5">
+                    Our handcrafted resin clocks combine functional design with artistic beauty...
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>

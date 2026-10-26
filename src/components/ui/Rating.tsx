@@ -9,14 +9,15 @@ interface RatingProps {
   max?: number;
   size?: 'sm' | 'md' | 'lg';
   showValue?: boolean;
+  className?: string;
 }
 
-export default function Rating({ value, max = 5, size = 'md', showValue = false }: RatingProps) {
+export default function Rating({ value, max = 5, size = 'md', showValue = false, className }: RatingProps) {
   const sizeMap = { sm: 12, md: 16, lg: 20 };
   const iconSize = sizeMap[size];
 
   return (
-    <div className="flex items-center gap-0.5" aria-label={`Rating: ${value} out of ${max}`}>
+    <div className={`flex items-center gap-0.5 ${className || ''}`} aria-label={`Rating: ${value} out of ${max}`}>
       {Array.from({ length: max }, (_, i) => {
         const filled = i < Math.floor(value);
         const halfFilled = !filled && i < value;

@@ -21,15 +21,7 @@ import {
 import toast from 'react-hot-toast';
 import type { Category } from '@/types';
 
-function cleanImagePath(val: string): string {
-  if (!val) return '';
-  const trimmed = val.trim();
-  if (trimmed.startsWith('data:') || trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-    return trimmed;
-  }
-  const clean = trimmed.replace(/^\/?public\//, '/');
-  return clean.startsWith('/') ? clean : `/${clean}`;
-}
+import { cleanImagePath } from '@/lib/image-utils';
 
 export default function AdminCategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);

@@ -11,7 +11,13 @@ export async function GET() {
 
   try {
     const config = await getHomepageConfig();
-    return NextResponse.json(config);
+    return NextResponse.json(config, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'CDN-Cache-Control': 'no-store',
+        'Vercel-CDN-Cache-Control': 'no-store',
+      },
+    });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Failed to fetch homepage config' }, { status: 500 });
   }
@@ -32,7 +38,16 @@ export async function PUT(req: Request) {
     revalidatePath('/');
     revalidatePath('/api/homepage');
 
-    return NextResponse.json({ success: true, config: updated });
+    return NextResponse.json(
+      { success: true, config: updated },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'CDN-Cache-Control': 'no-store',
+          'Vercel-CDN-Cache-Control': 'no-store',
+        },
+      }
+    );
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Failed to update homepage' }, { status: 500 });
   }
