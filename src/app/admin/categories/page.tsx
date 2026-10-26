@@ -21,6 +21,16 @@ import {
 import toast from 'react-hot-toast';
 import type { Category } from '@/types';
 
+function cleanImagePath(val: string): string {
+  if (!val) return '';
+  const trimmed = val.trim();
+  if (trimmed.startsWith('data:') || trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed;
+  }
+  const clean = trimmed.replace(/^\/?public\//, '/');
+  return clean.startsWith('/') ? clean : `/${clean}`;
+}
+
 export default function AdminCategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -93,7 +103,7 @@ export default function AdminCategoriesPage() {
       const res = await fetch('/api/upload', { method: 'POST', body: formData });
       const data = await res.json();
       if (data.success && data.url) {
-        setImage(data.url);
+        setImage(cleanImagePath(data.url));
         toast.success('Category image uploaded');
       }
     } catch (err) {
@@ -115,7 +125,7 @@ export default function AdminCategoriesPage() {
           name,
           slug,
           description,
-          image,
+          image: cleanImagePath(image),
         }),
       });
 

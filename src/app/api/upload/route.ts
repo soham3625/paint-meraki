@@ -105,13 +105,21 @@ export async function POST(req: NextRequest) {
     const randomHex = crypto.randomBytes(12).toString('hex');
     const filename = `pm_${Date.now()}_${randomHex}${safeExt}`;
 
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-    await mkdir(uploadDir, { recursive: true });
+    let publicUrl: string;
+    try {
+      const uploadDir = path.join(process.cwd(), 'public', 'uploads');
+      await mkdir(uploadDir, { recursive: true });
 
-    const filePath = path.join(uploadDir, filename);
-    await writeFile(filePath, buffer);
+      const filePath = path.join(uploadDir, filename);
+      await writeFile(filePath, buffer);
 
-    const publicUrl = `/uploads/${filename}`;
+      publicUrl = `/uploads/${filename}`;
+    } catch (fsErr: any) {
+      // Vercel / serverless environment has read-only filesystem (EROFS)
+      // Fallback to high-reliability data URI so custom image uploads never fail
+      console.warn('[upload] Local disk write failed (serverless read-only), falling back to data URI:', fsErr?.message);
+      publicUrl = `data:${declaredType};base64,${buffer.toString('base64')}`;
+    }
 
     const response = NextResponse.json({
       success: true,
@@ -122,6 +130,7 @@ export async function POST(req: NextRequest) {
     response.headers.set('X-Content-Type-Options', 'nosniff');
     return response;
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: 'File upload failed' }, { status: 500 });
+    console.error('[upload] Unhandled upload error:', error);
+    return NextResponse.json({ success: false, error: 'File upload failed: ' + (error?.message || 'Unknown error') }, { status: 500 });
   }
 }

@@ -275,6 +275,8 @@ export interface HomepageConfig {
   featuredProducts: string[];
   bestSellers: string[];
   newArrivals: string[];
+  resinClocksImage?: string;
+  poojaThalisImage?: string;
   updatedAt: string;
 }
 

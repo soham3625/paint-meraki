@@ -19,6 +19,17 @@ import ProductCard from '@/components/product/ProductCard';
 import Rating from '@/components/ui/Rating';
 import type { Product, Category, Review, HomepageConfig, BusinessSettings } from '@/types';
 
+// Helper to sanitize and normalize image paths
+function normalizeImagePath(path?: string): string {
+  if (!path) return '';
+  const trimmed = path.trim();
+  if (trimmed.startsWith('data:') || trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed;
+  }
+  const clean = trimmed.replace(/^\/?public\//, '/');
+  return clean.startsWith('/') ? clean : `/${clean}`;
+}
+
 // Animation variants
 const fadeInUp: Variants = {
   hidden: { opacity: 0, y: 30 },
@@ -42,6 +53,7 @@ export default function HomePage() {
     heroButtonLink: '/shop',
     heroImage: '/images/categories/clock-2.jpg',
     heroEnabled: true,
+    resinClocksImage: '/images/products/clock-6.png',
   });
   const [settings, setSettings] = useState<Partial<BusinessSettings>>({
     whatsappNumber: '919878541310',
@@ -114,7 +126,15 @@ export default function HomePage() {
     setReviewIndex((prev) => (prev - 1 + Math.max(1, reviewsList.length - 2)) % Math.max(1, reviewsList.length - 2));
   };
 
-  const heroImgSrc = homepageConfig.heroImage || '/circle.png';
+  const resinClockCategory = categoriesList.find((c) => c.slug === 'resin-clocks');
+  const resinClocksSpotlightImage = normalizeImagePath(
+    homepageConfig.resinClocksImage ||
+    resinClockCategory?.image ||
+    resinClocks[0]?.thumbnail ||
+    '/images/products/clock-6.png'
+  );
+
+  const heroImgSrc = normalizeImagePath(homepageConfig.heroImage || '/circle.png');
   const whatsappUrl = `https://wa.me/${settings.whatsappNumber || '919878541310'}?text=${encodeURIComponent('Hi Paint Meraki, I would like to discuss a custom order.')}`;
 
   return (
@@ -329,11 +349,11 @@ export default function HomePage() {
               </motion.div>
               <div className="rounded-2xl overflow-hidden aspect-video bg-gradient-to-br from-cream to-blush/30 relative flex items-center justify-center">
                 <img
-                  src={resinClocks[0]?.thumbnail || '/images/products/clock-6.png'}
+                  src={resinClocksSpotlightImage}
                   alt="Resin Clock Collection"
                   className="w-full h-full object-cover relative z-10"
                   onError={(e) => {
-                    (e.target as HTMLElement).style.display = 'none';
+                    (e.target as HTMLImageElement).src = '/images/products/clock-6.png';
                   }}
                 />
                 <span className="font-accent text-dusty-rose/40 text-2xl absolute inset-0 flex items-center justify-center z-0">

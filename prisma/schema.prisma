@@ -285,6 +285,8 @@ model HomepageConfig {
   featuredProducts    String[] @default([])
   bestSellers         String[] @default([])
   newArrivals         String[] @default([])
+  resinClocksImage    String?
+  poojaThalisImage    String?
   updatedAt           DateTime @updatedAt
 }
 

@@ -16,9 +16,21 @@ import {
   Eye,
   Check,
   RefreshCw,
+  Clock,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { HomepageConfig, Product, Category } from '@/types';
+
+// Helper to sanitize and normalize image paths entered by users
+function cleanImagePath(val: string): string {
+  if (!val) return '';
+  const trimmed = val.trim();
+  if (trimmed.startsWith('data:') || trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed;
+  }
+  const clean = trimmed.replace(/^\/?public\//, '/');
+  return clean.startsWith('/') ? clean : `/${clean}`;
+}
 
 export default function AdminHomepageManagerPage() {
   const [config, setConfig] = useState<HomepageConfig | null>(null);
@@ -35,6 +47,9 @@ export default function AdminHomepageManagerPage() {
   const [heroButtonLink, setHeroButtonLink] = useState('');
   const [heroImage, setHeroImage] = useState('');
   const [heroEnabled, setHeroEnabled] = useState(true);
+
+  // Section 2 Spotlight Image (Resin Clocks)
+  const [resinClocksImage, setResinClocksImage] = useState('');
 
   // Curated Slugs
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -54,13 +69,14 @@ export default function AdminHomepageManagerPage() {
         if (hRes.ok) {
           const data: HomepageConfig = await hRes.json();
           setConfig(data);
-          setHeroHeading(data.heroHeading);
-          setHeroSubtitle(data.heroSubtitle);
-          setHeroDescription(data.heroDescription);
-          setHeroButtonText(data.heroButtonText);
-          setHeroButtonLink(data.heroButtonLink);
-          setHeroImage(data.heroImage);
-          setHeroEnabled(data.heroEnabled);
+          setHeroHeading(data.heroHeading || 'Art That Speaks to Your Soul');
+          setHeroSubtitle(data.heroSubtitle || 'Handcrafted Resin Masterpieces & Custom Decor');
+          setHeroDescription(data.heroDescription || 'Every piece at paint_n_meraki is meticulously handcrafted with love, precision, and artistic passion by Astha Patel.');
+          setHeroButtonText(data.heroButtonText || 'Explore Collection');
+          setHeroButtonLink(data.heroButtonLink || '/shop');
+          setHeroImage(data.heroImage || '/images/categories/clock-2.jpg');
+          setHeroEnabled(data.heroEnabled !== false);
+          setResinClocksImage(data.resinClocksImage || '/images/products/clock-6.png');
           setSelectedCategories(data.featuredCategories || []);
           setFeaturedProducts(data.featuredProducts || []);
           setBestSellers(data.bestSellers || []);
@@ -85,15 +101,40 @@ export default function AdminHomepageManagerPage() {
     const formData = new FormData();
     formData.append('file', file);
 
+    const toastId = toast.loading('Uploading hero image...');
     try {
       const res = await fetch('/api/upload', { method: 'POST', body: formData });
       const data = await res.json();
       if (data.success && data.url) {
-        setHeroImage(data.url);
-        toast.success('Hero image updated');
+        setHeroImage(cleanImagePath(data.url));
+        toast.success('Hero image updated', { id: toastId });
+      } else {
+        toast.error(data.error || 'Upload failed', { id: toastId });
       }
     } catch (e) {
-      toast.error('Image upload failed');
+      toast.error('Image upload failed', { id: toastId });
+    }
+  };
+
+  const handleResinClocksImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const toastId = toast.loading('Uploading spotlight image...');
+    try {
+      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (data.success && data.url) {
+        setResinClocksImage(cleanImagePath(data.url));
+        toast.success('Resin clocks spotlight image updated', { id: toastId });
+      } else {
+        toast.error(data.error || 'Upload failed', { id: toastId });
+      }
+    } catch (e) {
+      toast.error('Image upload failed', { id: toastId });
     }
   };
 
@@ -114,7 +155,11 @@ export default function AdminHomepageManagerPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+    const toastId = toast.loading('Saving and publishing changes live...');
     try {
+      const cleanHero = cleanImagePath(heroImage);
+      const cleanClocks = cleanImagePath(resinClocksImage);
+
       const res = await fetch('/api/admin/homepage', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -124,23 +169,26 @@ export default function AdminHomepageManagerPage() {
           heroDescription,
           heroButtonText,
           heroButtonLink,
-          heroImage,
+          heroImage: cleanHero,
           heroEnabled,
           featuredCategories: selectedCategories,
           featuredProducts,
           bestSellers,
           newArrivals,
+          resinClocksImage: cleanClocks,
         }),
       });
 
       const data = await res.json();
       if (res.ok && data.success) {
-        toast.success('Homepage configuration updated live!');
+        toast.success('Homepage configuration updated live!', { id: toastId });
+        if (data.config?.heroImage) setHeroImage(data.config.heroImage);
+        if (data.config?.resinClocksImage) setResinClocksImage(data.config.resinClocksImage);
       } else {
-        toast.error('Failed to save configuration');
+        toast.error(data.error || 'Failed to save configuration', { id: toastId });
       }
-    } catch (e) {
-      toast.error('Error saving settings');
+    } catch (e: any) {
+      toast.error('Error saving settings: ' + (e?.message || 'Network error'), { id: toastId });
     } finally {
       setSaving(false);
     }
@@ -268,22 +316,81 @@ export default function AdminHomepageManagerPage() {
                   type="text"
                   value={heroImage}
                   onChange={(e) => setHeroImage(e.target.value)}
-                  placeholder="/public/circle.png"
+                  onBlur={(e) => setHeroImage(cleanImagePath(e.target.value))}
+                  placeholder="/circle.png or /images/categories/clock-2.jpg"
                   className="flex-1 px-3.5 py-2 bg-[#F8F5EE] border border-[#EAE3D6] rounded-xl text-xs text-charcoal"
                 />
-                <label className="p-2 rounded-xl bg-amber-50 border border-amber-200 text-[#9B7B1B] hover:bg-amber-100 cursor-pointer flex items-center justify-center">
+                <label className="p-2 rounded-xl bg-amber-50 border border-amber-200 text-[#9B7B1B] hover:bg-amber-100 cursor-pointer flex items-center justify-center transition-colors">
                   <Upload className="w-4 h-4" />
                   <input type="file" accept="image/*" onChange={handleHeroImageUpload} className="hidden" />
                 </label>
               </div>
+              <p className="text-[11px] text-taupe mt-1">
+                Enter an image path (e.g. <span className="font-mono text-charcoal">/circle.png</span>) or click the upload icon to upload from your device.
+              </p>
             </div>
           </div>
 
-          {/* 2. Featured Categories Picker */}
+          {/* 2. Resin Clocks Showcase Section (Section 2 Image Spotlight) */}
+          <div className="bg-white rounded-2xl border border-[#EAE3D6] shadow-xs p-6 space-y-4">
+            <div className="border-b border-[#EAE3D6] pb-3">
+              <h3 className="font-serif text-base font-bold text-charcoal flex items-center gap-2">
+                <Clock className="w-4 h-4 text-[#D4AF37]" />
+                2. Resin Clocks Showcase Section (Section 2 Spotlight Image)
+              </h3>
+              <p className="text-xs text-taupe mt-0.5">
+                Controls the large showcase artwork image displayed in the &quot;✦ Resin Clocks / Timeless Art for Your Space&quot; section on your homepage.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-charcoal uppercase tracking-wider mb-1.5">
+                Resin Clocks Spotlight Image
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={resinClocksImage}
+                  onChange={(e) => setResinClocksImage(e.target.value)}
+                  onBlur={(e) => setResinClocksImage(cleanImagePath(e.target.value))}
+                  placeholder="/images/products/clock-6.png or /images/categories/clock-2.jpg"
+                  className="flex-1 px-3.5 py-2 bg-[#F8F5EE] border border-[#EAE3D6] rounded-xl text-xs text-charcoal"
+                />
+                <label className="p-2 rounded-xl bg-amber-50 border border-amber-200 text-[#9B7B1B] hover:bg-amber-100 cursor-pointer flex items-center justify-center transition-colors">
+                  <Upload className="w-4 h-4" />
+                  <input type="file" accept="image/*" onChange={handleResinClocksImageUpload} className="hidden" />
+                </label>
+              </div>
+              <p className="text-[11px] text-taupe mt-1">
+                Enter an image path or click upload to set the spotlight artwork for the Resin Clocks homepage section.
+              </p>
+            </div>
+
+            {resinClocksImage && (
+              <div className="flex items-center gap-3 pt-2">
+                <div className="w-20 h-14 rounded-xl overflow-hidden border border-[#EAE3D6] bg-stone-100 relative shrink-0">
+                  <img
+                    src={cleanImagePath(resinClocksImage) || '/images/products/clock-6.png'}
+                    alt="Section 2 Spotlight Preview"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = '/images/products/clock-6.png';
+                    }}
+                  />
+                </div>
+                <div className="text-[11px] text-taupe">
+                  <span className="font-semibold text-charcoal block">Current Spotlight Image Preview</span>
+                  <span className="font-mono text-[10px] truncate max-w-xs block">{resinClocksImage}</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 3. Featured Categories Picker */}
           <div className="bg-white rounded-2xl border border-[#EAE3D6] shadow-xs p-6 space-y-4">
             <h3 className="font-serif text-base font-bold text-charcoal border-b border-[#EAE3D6] pb-3 flex items-center gap-2">
               <Layers className="w-4 h-4 text-[#D4AF37]" />
-              2. Featured Categories on Homepage
+              3. Featured Categories on Homepage
             </h3>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -294,7 +401,7 @@ export default function AdminHomepageManagerPage() {
                     key={c.id}
                     type="button"
                     onClick={() => toggleCategory(c.slug)}
-                    className={`p-3 rounded-xl border text-left text-xs font-semibold transition-all ${isSelected
+                    className={`p-3 rounded-xl border text-left text-xs font-semibold transition-all cursor-pointer ${isSelected
                       ? 'border-[#D4AF37] bg-amber-50/70 text-[#9B7B1B] shadow-xs'
                       : 'border-[#EAE3D6] bg-[#F8F5EE] text-charcoal hover:bg-stone-100'
                       }`}
@@ -312,16 +419,17 @@ export default function AdminHomepageManagerPage() {
             </div>
           </div>
 
-          {/* 3. Featured Products Curator */}
+          {/* 4. Featured Products Curator */}
           <div className="bg-white rounded-2xl border border-[#EAE3D6] shadow-xs p-6 space-y-4">
             <h3 className="font-serif text-base font-bold text-charcoal border-b border-[#EAE3D6] pb-3 flex items-center gap-2">
               <Package className="w-4 h-4 text-[#D4AF37]" />
-              3. Featured Products Showcase ({featuredProducts.length} selected)
+              4. Featured Products Showcase ({featuredProducts.length} selected)
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-72 overflow-y-auto pr-1 custom-scrollbar">
               {products.map((p) => {
                 const isSelected = featuredProducts.includes(p.slug);
+                const pThumb = cleanImagePath(p.thumbnail || (p.images && p.images[0]) || '/images/categories/clock-2.jpg');
                 return (
                   <div
                     key={p.id}
@@ -332,12 +440,13 @@ export default function AdminHomepageManagerPage() {
                       }`}
                   >
                     <div className="relative w-10 h-10 rounded-lg overflow-hidden bg-stone-100 shrink-0">
-                      <Image
-                        src={p.thumbnail || (p.images && p.images[0]) || '/images/categories/clock-2.jpg'}
+                      <img
+                        src={pThumb}
                         alt={p.name}
-                        fill
-                        className="object-cover"
-                        sizes="40px"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = '/images/categories/clock-2.jpg';
+                        }}
                       />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -354,7 +463,7 @@ export default function AdminHomepageManagerPage() {
 
         {/* Right 1 Column: Preview & Quick Stats */}
         <div className="space-y-6">
-          {/* Live Preview Card */}
+          {/* Live Preview 1: Hero Section */}
           <div className="bg-white rounded-2xl border border-[#EAE3D6] shadow-xs p-6 space-y-4">
             <h3 className="font-serif text-base font-bold text-charcoal border-b border-[#EAE3D6] pb-3">
               Hero Section Preview
@@ -362,12 +471,13 @@ export default function AdminHomepageManagerPage() {
 
             <div className="rounded-xl overflow-hidden border border-[#EAE3D6] bg-[#1E1B18] text-white p-4 space-y-3">
               <div className="relative h-28 rounded-lg overflow-hidden bg-stone-800">
-                <Image
-                  src={heroImage || '/images/categories/clock-2.jpg'}
+                <img
+                  src={cleanImagePath(heroImage) || '/images/categories/clock-2.jpg'}
                   alt="Hero Preview"
-                  fill
-                  className="object-cover opacity-70"
-                  sizes="300px"
+                  className="w-full h-full object-cover opacity-70"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = '/circle.png';
+                  }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent p-3 flex flex-col justify-end">
                   <span className="text-[9px] uppercase tracking-wider text-[#D4AF37] font-bold">
@@ -388,6 +498,46 @@ export default function AdminHomepageManagerPage() {
                 className="w-full py-1.5 rounded-lg bg-[#D4AF37] text-white font-bold text-[10px]"
               >
                 {heroButtonText || 'Explore Collection'}
+              </button>
+            </div>
+          </div>
+
+          {/* Live Preview 2: Section 2 Resin Clocks Showcase */}
+          <div className="bg-white rounded-2xl border border-[#EAE3D6] shadow-xs p-6 space-y-4">
+            <h3 className="font-serif text-base font-bold text-charcoal border-b border-[#EAE3D6] pb-3 flex items-center justify-between">
+              <span>Section 2 Preview</span>
+              <span className="text-[10px] text-dusty-rose font-mono">✦ Resin Clocks</span>
+            </h3>
+
+            <div className="rounded-xl overflow-hidden border border-[#EAE3D6] bg-[#FAF8F5] p-3.5 space-y-3">
+              <div className="relative aspect-video rounded-lg overflow-hidden bg-stone-200">
+                <img
+                  src={cleanImagePath(resinClocksImage) || '/images/products/clock-6.png'}
+                  alt="Resin Clocks Spotlight Preview"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = '/images/products/clock-6.png';
+                  }}
+                />
+              </div>
+
+              <div>
+                <span className="text-[9px] uppercase tracking-wider text-dusty-rose font-bold block">
+                  ✦ Resin Clocks
+                </span>
+                <p className="font-heading text-xs font-bold text-charcoal leading-tight">
+                  Timeless Art for Your Space
+                </p>
+                <p className="text-[10px] text-taupe line-clamp-2 mt-1">
+                  Our handcrafted resin clocks combine functional design with artistic beauty...
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="w-full py-1.5 rounded-lg bg-charcoal text-white font-medium text-[10px]"
+              >
+                Explore Resin Clocks →
               </button>
             </div>
           </div>
