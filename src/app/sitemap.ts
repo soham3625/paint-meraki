@@ -2,7 +2,7 @@ import { MetadataRoute } from 'next';
 import { products, categories } from '@/lib/data/products';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://paintmeraki.com';
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://paint-meraki.vercel.app';
 
   const staticPages = [
     '',

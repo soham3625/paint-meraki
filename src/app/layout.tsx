@@ -3,6 +3,7 @@ import { Toaster } from 'react-hot-toast';
 import './globals.css';
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://paint-meraki.vercel.app'),
   title: {
     default: 'paint_n_meraki | Handcrafted Resin Art & Personalised Creations',
     template: '%s | paint_n_meraki',
@@ -27,7 +28,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_IN',
-    url: 'https://paintmeraki.com',
+    url: 'https://paint-meraki.vercel.app',
     siteName: 'paint_n_meraki',
     title: 'paint_n_meraki | Handcrafted Resin Art & Personalised Creations',
     description:

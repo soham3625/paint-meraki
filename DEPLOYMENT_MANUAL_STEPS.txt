@@ -1,0 +1,175 @@
+================================================================================
+PAINT MERAKI — PRE-DEPLOYMENT MANUAL CONFIGURATION GUIDE
+Domain: https://paint-meraki.vercel.app
+================================================================================
+
+This document provides exact, step-by-step instructions for the 3 manual setup
+steps required before taking your Paint Meraki website live on Vercel.
+
+--------------------------------------------------------------------------------
+STEP 1: ROTATE EXPOSED RESEND API KEY
+--------------------------------------------------------------------------------
+Why: The previous Resend key was exposed in a template file. Generating a new key
+ensures no unauthorized person can send emails through your account.
+
+1. Open your browser and log into:
+   https://resend.com/login
+
+2. Go to the API Keys section:
+   https://resend.com/api-keys
+
+3. Locate the existing key that begins with "re_5aqNg6JF...":
+   - Click the three dots (...) next to it.
+   - Click "Delete" or "Revoke".
+
+4. Click the "Create API Key" button (top-right corner):
+   - Name: Paint Meraki Production
+   - Permission: Full access (or Sending access)
+   - Domain: All domains (or your verified domain)
+   - Click "Add"
+
+5. COPY THE NEW KEY IMMEDIATELY:
+   - It will look like: re_xxxxxxxxxxxxxxxxxxxxxxxx
+   - Resend only displays this key once!
+
+6. Where to put this new key:
+   - On your computer: Open your local file:
+     d:\aastha patel\paint-meraki\.env.local
+     Update or add the line:
+     RESEND_API_KEY="re_your_new_key_here"
+
+   - In Hosting (Vercel): You will paste this same key in Step 3.
+
+
+--------------------------------------------------------------------------------
+STEP 2: ADD YOUR LIVE DOMAIN TO FIREBASE AUTHORIZED DOMAINS
+--------------------------------------------------------------------------------
+Why: Firebase Phone OTP Authentication (SMS delivery and reCAPTCHA) is restricted
+to authorized domains. By default, only "localhost" is enabled. When your website
+is hosted on Vercel, Firebase will reject OTP requests with an auth/unauthorized-domain
+error unless your domain "paint-meraki.vercel.app" is added to this whitelist.
+
+1. Open Google Firebase Console:
+   https://console.firebase.google.com/
+
+2. Select your project:
+   paintmeraki-1b0bd
+
+3. In the left navigation menu:
+   Click "Build" -> "Authentication"
+
+4. At the top of the Authentication screen:
+   Click the "Settings" tab.
+
+5. In the left sub-menu under Settings:
+   Click "Authorized domains"
+   Direct link: https://console.firebase.google.com/project/paintmeraki-1b0bd/authentication/settings
+
+6. Click the "Add domain" button:
+   - Enter your live domain WITHOUT "https://" and WITHOUT trailing slashes:
+     
+     paint-meraki.vercel.app
+
+   - (If you later add a custom domain e.g. paintmeraki.com, also add it here)
+
+7. Click "Done" / "Save".
+
+
+--------------------------------------------------------------------------------
+STEP 3: INPUT ENVIRONMENT VARIABLES INTO VERCEL SETTINGS
+--------------------------------------------------------------------------------
+Why: Because secret files like .env.local are excluded from Git for security,
+Vercel runs your app in a secure cloud container and needs these values
+configured in its Project Settings.
+
+1. Go to your Vercel Dashboard:
+   https://vercel.com/dashboard
+
+2. Click on your "paint-meraki" project.
+3. Click "Settings" (top navigation bar).
+4. Click "Environment Variables" in the left sidebar.
+5. Add each KEY and VALUE from the list below.
+   Ensure "Production", "Preview", and "Development" checkboxes are selected.
+6. Click "Save".
+
+
+================================================================================
+COMPLETE ENVIRONMENT VARIABLES TO COPY & PASTE INTO VERCEL
+================================================================================
+
+KEY: NEXTAUTH_SECRET
+VALUE: p@1nt_m3rak1_s3cur3_k3y_pr0duct10n_2026_x99
+
+KEY: NEXTAUTH_URL
+VALUE: https://paint-meraki.vercel.app
+
+KEY: JWT_ACCESS_SECRET
+VALUE: p@1nt_m3rak1_jwt_acc3ss_s3cur3_k3y_2026_a88
+
+KEY: JWT_REFRESH_SECRET
+VALUE: p@1nt_m3rak1_jwt_r3fr3sh_s3cur3_k3y_2026_b77
+
+KEY: NEXT_PUBLIC_SITE_URL
+VALUE: https://paint-meraki.vercel.app
+
+KEY: APP_URL
+VALUE: https://paint-meraki.vercel.app
+
+KEY: NEXT_PUBLIC_FIREBASE_API_KEY
+VALUE: AIzaSyDLubQAqeW2hndC0uaPCnHEWpSAyT0IpYk
+
+KEY: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+VALUE: paintmeraki-1b0bd.firebaseapp.com
+
+KEY: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+VALUE: paintmeraki-1b0bd
+
+KEY: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+VALUE: paintmeraki-1b0bd.firebasestorage.app
+
+KEY: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+VALUE: 965347857511
+
+KEY: NEXT_PUBLIC_FIREBASE_APP_ID
+VALUE: 1:965347857511:web:e60b48df7e6ad70f8c70c2
+
+KEY: FIREBASE_PROJECT_ID
+VALUE: paintmeraki-1b0bd
+
+KEY: RESEND_API_KEY
+VALUE: (Paste the NEW key you generated in Step 1, e.g., re_xxxxxxxx)
+
+KEY: RESEND_FROM_EMAIL
+VALUE: Paint Meraki <onboarding@resend.dev>
+
+KEY: RESEND_REPLY_TO
+VALUE: hello@paintmeraki.com
+
+KEY: UPI_ID
+VALUE: paintmeraki@upi
+
+KEY: UPI_NAME
+VALUE: Paint Meraki
+
+KEY: OWNER_WHATSAPP_NUMBER
+VALUE: 919878541310
+
+KEY: DATABASE_URL
+VALUE: (Optional - leave blank if running on the built-in runtime data store, or provide your cloud PostgreSQL URL)
+
+
+================================================================================
+ADMIN PANEL LOGIN CREDENTIALS
+================================================================================
+Once deployed, log into your Admin Console at:
+https://paint-meraki.vercel.app/admin/login
+
+- Superadmin: admin@paintmeraki.com
+  Password:   Asthapatel@#9990
+
+- Website Manager: superadmin@paintmeraki.com
+  Password:        Soham@335323#
+
+- Staff Support: staff@paintmeraki.com
+  Password:      admin123
+================================================================================

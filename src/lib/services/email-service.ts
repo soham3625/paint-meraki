@@ -144,7 +144,7 @@ If you did not request a password reset, you can safely ignore this email.
 
 Thank you,
 The Paint Meraki Team
-https://paintmeraki.com
+${process.env.NEXT_PUBLIC_SITE_URL || 'https://paint-meraki.vercel.app'}
   `.trim();
 }
 
