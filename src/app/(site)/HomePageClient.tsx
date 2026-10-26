@@ -116,7 +116,10 @@ export default function HomePageClient({
     '/images/products/clock-6.png'
   );
 
-  const heroImgSrc = cleanImagePath(homepageConfig.heroImage || '/circle.png');
+  const configuredHero = cleanImagePath(homepageConfig.heroImage);
+  const heroImgSrc = (configuredHero && configuredHero !== '/images/categories/clock-2.jpg')
+    ? configuredHero
+    : '/circle.png';
   const whatsappUrl = `https://wa.me/${settings.whatsappNumber || '919878541310'}?text=${encodeURIComponent('Hi Paint Meraki, I would like to discuss a custom order.')}`;
 
   return (

@@ -60,7 +60,7 @@ const defaultHomepageConfig: HomepageConfig = {
   heroDescription: 'Every piece at paint_n_meraki is meticulously handcrafted with love, precision, and artistic passion by Astha Patel.',
   heroButtonText: 'Explore Collection',
   heroButtonLink: '/shop',
-  heroImage: '/images/categories/clock-2.jpg',
+  heroImage: '/circle.png',
   heroEnabled: true,
   featuredCategories: ['resin-clocks', 'pooja-thalis', 'decorative-frames', 'resin-hanging-decor'],
   featuredProducts: ['classic-geode-resin-clock-10-inch', 'handcrafted-resin-pooja-thali-8-inch', 'decorative-photo-frame-10-inch'],
@@ -555,6 +555,11 @@ async function autoSeedDatabase() {
             resinClocksImage: defaultHomepageConfig.resinClocksImage,
             poojaThalisImage: defaultHomepageConfig.poojaThalisImage,
           },
+        });
+      } else if (homeConfig.heroImage === '/images/categories/clock-2.jpg') {
+        await prisma.homepageConfig.update({
+          where: { id: 'default' },
+          data: { heroImage: '/circle.png' },
         });
       }
 
@@ -1743,7 +1748,7 @@ export async function getHomepageConfig(): Promise<HomepageConfig> {
           heroDescription: dbConfig.heroDescription,
           heroButtonText: dbConfig.heroButtonText,
           heroButtonLink: dbConfig.heroButtonLink,
-          heroImage: dbConfig.heroImage,
+          heroImage: dbConfig.heroImage === '/images/categories/clock-2.jpg' ? '/circle.png' : (dbConfig.heroImage || '/circle.png'),
           heroEnabled: dbConfig.heroEnabled,
           featuredCategories: Array.isArray(dbConfig.featuredCategories) ? dbConfig.featuredCategories : [],
           featuredProducts: Array.isArray(dbConfig.featuredProducts) ? dbConfig.featuredProducts : [],

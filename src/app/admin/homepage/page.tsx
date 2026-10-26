@@ -69,7 +69,8 @@ export default function AdminHomepageManagerPage() {
           setHeroDescription(data.heroDescription || 'Every piece at paint_n_meraki is meticulously handcrafted with love, precision, and artistic passion by Astha Patel.');
           setHeroButtonText(data.heroButtonText || 'Explore Collection');
           setHeroButtonLink(data.heroButtonLink || '/shop');
-          setHeroImage(cleanImagePath(data.heroImage) || '/circle.png');
+          const loadedHero = cleanImagePath(data.heroImage);
+          setHeroImage(loadedHero === '/images/categories/clock-2.jpg' ? '/circle.png' : (loadedHero || '/circle.png'));
           setHeroEnabled(data.heroEnabled !== false);
           setResinClocksImage(cleanImagePath(data.resinClocksImage) || '/images/products/clock-6.png');
           setPoojaThalisImage(cleanImagePath(data.poojaThalisImage) || '/images/categories/pooja_thali.jpg');
