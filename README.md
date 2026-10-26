@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🎨 paint_n_meraki — Handcrafted Resin Art & Luxury Home Decor E-Commerce Platform
 
 [![Next.js](https://img.shields.io/badge/Next.js-16.3.0-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
@@ -375,3 +376,6 @@ npm run start
 ## 📄 License & Attribution
 
 All rights reserved © **paint_n_meraki**. Handcrafted with passion by **Astha Patel**.
+=======
+# paint-meraki
+>>>>>>> 71928ef9f3f5cb0ef868c8be576eeed5a9f409c8
