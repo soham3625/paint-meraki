@@ -1,0 +1,315 @@
+// Prisma Schema for paint_n_meraki E-Commerce
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  STAFF
+  CUSTOMER
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum ProductStatus {
+  ACTIVE
+  DRAFT
+  OUT_OF_STOCK
+  ARCHIVED
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAYMENT_VERIFICATION
+  CONFIRMED
+  PROCESSING
+  READY_TO_SHIP
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  VERIFICATION
+  CONFIRMED
+  FAILED
+  REFUNDED
+}
+
+enum CustomOrderStatus {
+  NEW
+  CONTACTED
+  DESIGNING
+  QUOTE_SENT
+  APPROVED
+  IN_PRODUCTION
+  COMPLETED
+  CANCELLED
+}
+
+model Category {
+  id           String    @id @default(cuid())
+  name         String
+  slug         String    @unique
+  description  String
+  image        String
+  products     Product[]
+  sortOrder    Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Product {
+  id               String           @id @default(cuid())
+  name             String
+  slug             String           @unique
+  categoryName     String
+  categorySlug     String
+  category         Category         @relation(fields: [categorySlug], references: [slug])
+  description      String
+  shortDescription String
+  price            Float
+  compareAtPrice   Float?
+  costPrice        Float?
+  images           String[]
+  thumbnail        String
+  sizes            Json
+  colors           String[]
+  customizable     Boolean          @default(false)
+  featured         Boolean          @default(false)
+  bestSeller       Boolean          @default(false)
+  isNewArrival     Boolean          @default(false)
+  status           ProductStatus    @default(ACTIVE)
+  tags             String[]         @default([])
+  stock            Int              @default(0)
+  sku              String           @unique
+  weight           String?
+  dimensions       String?
+  material         String
+  careInstructions String
+  shippingInfo     String
+  rating           Float            @default(5.0)
+  reviewCount      Int              @default(0)
+  orderItems       OrderItem[]
+  reviews          Review[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+}
+
+model Order {
+  id              String           @id @default(cuid())
+  orderNumber     String           @unique
+  userId          String?
+  user            User?            @relation(fields: [userId], references: [id])
+  customerName    String
+  customerMobile  String
+  customerEmail   String
+  address         String
+  city            String
+  state           String
+  pincode         String
+  landmark        String?
+  subtotal        Float
+  shippingCharge  Float
+  codFee          Float            @default(0)
+  discountAmount  Float            @default(0)
+  couponCode      String?
+  total           Float
+  paymentMethod   String
+  paymentStatus   PaymentStatus    @default(PENDING)
+  orderStatus     OrderStatus      @default(PENDING_PAYMENT)
+  utrNumber       String?
+  trackingNumber  String?
+  courierName     String?
+  notes           String?
+  items           OrderItem[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+model OrderItem {
+  id           String   @id @default(cuid())
+  orderId      String
+  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId    String
+  product      Product  @relation(fields: [productId], references: [id])
+  quantity     Int
+  price        Float
+  selectedSize String
+  customization Json?
+}
+
+model CustomOrder {
+  id                   String            @id @default(cuid())
+  customerName         String
+  whatsappNumber       String
+  email                String?
+  productType          String
+  preferredSize        String?
+  preferredColors      String?
+  budget               String?
+  quotationAmount      Float?
+  referenceImageUrl    String?
+  personalPhotoUrl     String?
+  description          String
+  specialInstructions  String?
+  adminNotes           String?
+  status               CustomOrderStatus @default(NEW)
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+}
+
+model Review {
+  id           String   @id @default(cuid())
+  customerName String
+  rating       Float
+  review       String
+  productId    String?
+  product      Product? @relation(fields: [productId], references: [id])
+  verified     Boolean  @default(true)
+  isFeatured   Boolean  @default(false)
+  isVisible    Boolean  @default(true)
+  createdAt    DateTime @default(now())
+}
+
+model User {
+  id                  String               @id @default(cuid())
+  firebaseUid         String?              @unique
+  fullName            String
+  email               String?              @unique
+  mobile              String?              @unique
+  passwordHash        String?
+  role                Role                 @default(CUSTOMER)
+  status              UserStatus           @default(ACTIVE)
+  orders              Order[]
+  passwordResetTokens PasswordResetToken[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String?
+  user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email     String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([email])
+  @@index([tokenHash])
+}
+
+model BusinessSettings {
+  id                    String   @id @default("default")
+  businessName          String   @default("paint_n_meraki")
+  logo                  String   @default("/logo.png")
+  whatsappNumber        String   @default("919878541310")
+  instagramUrl          String   @default("https://www.instagram.com/paint.meraki")
+  email                 String   @default("hello@paintmeraki.com")
+  upiId                 String   @default("paintmeraki@upi")
+  upiQrCode             String?
+  codEnabled            Boolean  @default(true)
+  codMinOrder           Float    @default(0)
+  codMaxOrder           Float    @default(10000)
+  codFee                Float    @default(0)
+  shippingCharge        Float    @default(99)
+  freeShippingThreshold Float    @default(2000)
+  processingTime        String   @default("5-7 business days")
+  deliveryTime          String   @default("3-5 business days")
+  announcementText      String   @default("♡ Handmade with Love | ✦ Custom Orders Available | Made Just for You ♡")
+  announcementEnabled   Boolean  @default(true)
+  businessAddress       String   @default("Gujarat, India")
+  updatedAt             DateTime @updatedAt
+}
+
+model Coupon {
+  id             String       @id @default(cuid())
+  code           String       @unique
+  description    String?
+  discountType   DiscountType @default(PERCENTAGE)
+  discountValue  Float
+  minOrderAmount Float        @default(0)
+  maxDiscount    Float?
+  expiryDate     DateTime?
+  usageLimit     Int?
+  usedCount      Int          @default(0)
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model Banner {
+  id             String    @id @default(cuid())
+  title          String
+  subtitle       String?
+  imageUrl       String
+  mobileImageUrl String?
+  buttonText     String?
+  buttonLink     String?
+  position       String    @default("hero")
+  isActive       Boolean   @default(true)
+  sortOrder      Int       @default(0)
+  startDate      DateTime?
+  endDate        DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model HomepageConfig {
+  id                  String   @id @default("default")
+  heroHeading         String   @default("Art That Speaks to Your Soul")
+  heroSubtitle        String   @default("Handcrafted Resin Masterpieces & Custom Decor")
+  heroDescription     String   @default("Every piece at paint_n_meraki is meticulously handcrafted with love and artistic passion.")
+  heroButtonText      String   @default("Explore Collection")
+  heroButtonLink      String   @default("/shop")
+  heroImage           String   @default("/images/categories/clock-2.jpg")
+  heroEnabled         Boolean  @default(true)
+  featuredCategories  String[] @default(["resin-clocks", "pooja-thalis", "decorative-frames", "resin-hanging-decor"])
+  featuredProducts    String[] @default([])
+  bestSellers         String[] @default([])
+  newArrivals         String[] @default([])
+  updatedAt           DateTime @updatedAt
+}
+
+model WebsiteContent {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  title     String
+  content   String
+  section   String   @default("general")
+  updatedAt DateTime @updatedAt
+}
+
+model ActivityLog {
+  id         String   @id @default(cuid())
+  adminEmail String
+  adminName  String
+  action     String
+  entity     String
+  entityId   String?
+  details    String?
+  createdAt  DateTime @default(now())
+}
+
+model NewsletterSubscriber {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  subscribedAt DateTime @default(now())
+}

@@ -1,0 +1,579 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&family=Inter:wght@300;400;500;600;700&family=Dancing+Script:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+/* ============================================
+   paint_n_meraki — DESIGN SYSTEM
+   Brand: Handcrafted Resin Art & Decor
+   ============================================ */
+
+@theme inline {
+  /* Brand Colors */
+  --color-ivory: #FAF7F2;
+  --color-beige: #EFE5DB;
+  --color-dusty-rose: #CFA99D;
+  --color-blush: #E8D0C7;
+  --color-charcoal: #181616;
+  --color-taupe: #8A7770;
+  --color-champagne: #D4C5B2;
+  --color-warm-gray: #B8ADA5;
+  --color-cream: #F5EDE4;
+  --color-rose-light: #F3E5E0;
+  --color-gold: #C5A572;
+  --color-gold-light: #E8D5B7;
+  --color-success: #5B8C5A;
+  --color-warning: #D4A843;
+  --color-error: #C75B5B;
+  --color-info: #5B8CA0;
+
+  /* Typography */
+  --font-heading: 'Playfair Display', 'Georgia', serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-accent: 'Dancing Script', cursive;
+
+  /* Shadows */
+  --shadow-soft: 0 2px 15px rgba(24, 22, 22, 0.06);
+  --shadow-card: 0 4px 20px rgba(24, 22, 22, 0.08);
+  --shadow-elevated: 0 8px 30px rgba(24, 22, 22, 0.12);
+  --shadow-glow: 0 0 30px rgba(207, 169, 157, 0.2);
+
+  /* Animations */
+  --ease-premium: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Spacing */
+  --section-padding: clamp(3rem, 8vw, 6rem);
+}
+
+/* ============================================
+   BASE STYLES
+   ============================================ */
+
+:root {
+  --background: #FAF7F2;
+  --foreground: #181616;
+  scroll-behavior: smooth;
+}
+
+::selection {
+  background-color: #E8D0C7;
+  color: #181616;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* ============================================
+   TYPOGRAPHY
+   ============================================ */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--foreground);
+}
+
+.font-accent {
+  font-family: var(--font-accent);
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+/* ============================================
+   SCROLLBAR
+   ============================================ */
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #FAF7F2;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #CFA99D;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #8A7770;
+}
+
+/* ============================================
+   DECORATIVE ELEMENTS
+   ============================================ */
+
+.decorative-line {
+  position: relative;
+}
+
+.decorative-line::after {
+  content: '';
+  display: block;
+  width: 60px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #CFA99D, transparent);
+  margin: 0.75rem auto 0;
+}
+
+.decorative-dot::before {
+  content: '✦';
+  color: #CFA99D;
+  margin-right: 0.5rem;
+  font-size: 0.75em;
+}
+
+.brush-stroke {
+  position: relative;
+}
+
+.brush-stroke::before {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  right: 0;
+  height: 8px;
+  background: linear-gradient(90deg, transparent 0%, #E8D0C7 20%, #CFA99D 50%, #E8D0C7 80%, transparent 100%);
+  opacity: 0.4;
+  border-radius: 50%;
+  z-index: -1;
+}
+
+/* ============================================
+   SECTION HEADING STYLE
+   ============================================ */
+
+.section-heading {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.section-heading h2 {
+  font-family: var(--font-heading);
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 600;
+  color: var(--foreground);
+  margin-bottom: 0.75rem;
+}
+
+.section-heading p {
+  font-family: var(--font-body);
+  color: var(--color-taupe);
+  font-size: 1rem;
+  max-width: 500px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+/* ============================================
+   PRODUCT CARD HOVER
+   ============================================ */
+
+.product-card-image {
+  overflow: hidden;
+}
+
+.product-card-image img {
+  transition: transform 0.6s var(--ease-premium);
+}
+
+.product-card:hover .product-card-image img {
+  transform: scale(1.05);
+}
+
+.product-card .product-card-overlay {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.product-card:hover .product-card-overlay {
+  opacity: 1;
+}
+
+/* ============================================
+   BUTTON STYLES
+   ============================================ */
+
+.btn-primary {
+  background-color: var(--foreground);
+  color: #FAF7F2;
+  padding: 0.75rem 2rem;
+  border-radius: 9999px;
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: 0.875rem;
+  letter-spacing: 0.025em;
+  transition: all 0.3s var(--ease-premium);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 2px solid transparent;
+}
+
+.btn-primary:hover {
+  background-color: #2a2626;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-soft);
+}
+
+.btn-secondary {
+  background-color: transparent;
+  color: var(--foreground);
+  padding: 0.75rem 2rem;
+  border-radius: 9999px;
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: 0.875rem;
+  letter-spacing: 0.025em;
+  border: 1.5px solid var(--foreground);
+  transition: all 0.3s var(--ease-premium);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-secondary:hover {
+  background-color: var(--foreground);
+  color: #FAF7F2;
+  transform: translateY(-1px);
+}
+
+.btn-rose {
+  background-color: var(--color-dusty-rose);
+  color: white;
+  padding: 0.75rem 2rem;
+  border-radius: 9999px;
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: 0.875rem;
+  transition: all 0.3s var(--ease-premium);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-rose:hover {
+  background-color: #b8908a;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-soft);
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes pulse-soft {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s var(--ease-premium) forwards;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease forwards;
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* ============================================
+   SKELETON LOADER
+   ============================================ */
+
+.skeleton {
+  background: linear-gradient(90deg, #EFE5DB 25%, #F5EDE4 50%, #EFE5DB 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* ============================================
+   FOCUS STYLES (ACCESSIBILITY)
+   ============================================ */
+
+*:focus-visible {
+  outline: 2px solid var(--color-dusty-rose);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ============================================
+   CONTAINER
+   ============================================ */
+
+.container-custom {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+@media (min-width: 640px) {
+  .container-custom {
+    padding: 0 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container-custom {
+    padding: 0 2rem;
+  }
+}
+
+/* ============================================
+   FORM INPUTS
+   ============================================ */
+
+@layer components {
+  .input-field {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1.5px solid #EFE5DB;
+    border-radius: 0.5rem;
+    font-family: var(--font-body);
+    font-size: 0.875rem;
+    background-color: white;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    color: var(--foreground);
+  }
+
+  .input-field::placeholder {
+    color: var(--color-warm-gray);
+  }
+
+  .input-field:focus {
+    outline: none;
+    border-color: var(--color-dusty-rose);
+    box-shadow: 0 0 0 3px rgba(207, 169, 157, 0.15);
+  }
+
+  .input-label {
+    display: block;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--color-taupe);
+    margin-bottom: 0.375rem;
+    font-family: var(--font-body);
+  }
+}
+
+/* ============================================
+   BADGE
+   ============================================ */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.badge-new {
+  background-color: var(--color-rose-light);
+  color: var(--color-dusty-rose);
+}
+
+.badge-bestseller {
+  background-color: var(--color-gold-light);
+  color: var(--color-gold);
+}
+
+.badge-custom {
+  background-color: var(--color-beige);
+  color: var(--color-taupe);
+}
+
+.badge-sale {
+  background-color: #fde8e8;
+  color: var(--color-error);
+}
+
+/* ============================================
+   RATING STARS
+   ============================================ */
+
+.star-filled {
+  color: var(--color-gold);
+}
+
+.star-empty {
+  color: #E0D8D0;
+}
+
+/* ============================================
+   RESPONSIVE HELPERS
+   ============================================ */
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* ============================================
+   PAGE TRANSITIONS
+   ============================================ */
+
+.page-enter {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.page-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* ============================================
+   A4 PRINT INVOICE OPTIMIZATIONS
+   ============================================ */
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm 10mm 8mm 10mm;
+  }
+
+  body {
+    background: #FFFFFF !important;
+    color: #181616 !important;
+    font-size: 11pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Hide UI elements on print */
+  header,
+  footer,
+  nav,
+  aside,
+  button,
+  .no-print,
+  .whatsapp-float,
+  .mobile-nav,
+  [data-hide-print],
+  div[role="status"],
+  #__next-build-watcher {
+    display: none !important;
+  }
+
+  /* Expand print containers */
+  main,
+  .print-full-width {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Table and card optimizations */
+  table {
+    page-break-inside: auto;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tfoot {
+    display: table-footer-group;
+  }
+
+  a {
+    text-decoration: none !important;
+    color: inherit !important;
+  }
+}
