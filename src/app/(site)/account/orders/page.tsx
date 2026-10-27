@@ -135,11 +135,16 @@ export default function OrdersPage() {
                     <StatusIcon size={20} className="text-taupe group-hover:text-dusty-rose transition-colors" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
+                    <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                       <p className="font-medium text-sm text-charcoal">#{order.orderNumber}</p>
                       <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${status.color}`}>
                         {status.label}
                       </span>
+                      {order.orderStatus === 'DELIVERED' && (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#FAF6EE] text-[#9B7B1B] border border-[#D4AF37]/30 flex items-center gap-1">
+                          ★ Rate & Review
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-taupe">
                       {order.items.length} item{order.items.length !== 1 ? 's' : ''} • {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
