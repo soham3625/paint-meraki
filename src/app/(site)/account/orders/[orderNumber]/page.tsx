@@ -214,6 +214,12 @@ export default function OrderDetailPage() {
                 <span>{formatPrice(order.codFee)}</span>
               </div>
             )}
+            {order.discountAmount ? (
+              <div className="flex justify-between text-emerald-600 font-medium">
+                <span>Discount ({order.couponCode || 'Coupon'})</span>
+                <span>-{formatPrice(order.discountAmount)}</span>
+              </div>
+            ) : null}
             <div className="flex justify-between font-heading font-semibold text-charcoal pt-2 border-t border-beige/30">
               <span>Total</span>
               <span>{formatPrice(order.total)}</span>

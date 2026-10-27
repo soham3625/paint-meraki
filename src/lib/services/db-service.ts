@@ -644,6 +644,16 @@ export async function ensureDatabaseTables(): Promise<void> {
         );
       `);
 
+      const orderAlterQueries = [
+        `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "discountAmount" DOUBLE PRECISION DEFAULT 0;`,
+        `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "couponCode" TEXT;`,
+      ];
+      for (const q of orderAlterQueries) {
+        try {
+          await prisma.$executeRawUnsafe(q);
+        } catch { }
+      }
+
       // 8. Ensure OrderItem table
       await prisma.$executeRawUnsafe(`
         CREATE TABLE IF NOT EXISTS "OrderItem" (
@@ -1634,6 +1644,25 @@ export async function createOrder(order: Order): Promise<Order> {
       const mapped = mapPrismaOrderToAppOrder(savedDbOrder);
       const list = globalRuntime._orders || [];
       globalRuntime._orders = [mapped, ...list.filter((o) => o.id !== mapped.id && o.orderNumber !== mapped.orderNumber)];
+
+      // Increment coupon usage count if a valid coupon was applied
+      if (normalized.couponCode) {
+        try {
+          await prisma.coupon.updateMany({
+            where: { code: { equals: normalized.couponCode.trim(), mode: 'insensitive' } },
+            data: { usedCount: { increment: 1 } },
+          });
+          if (globalRuntime._coupons) {
+            const coup = globalRuntime._coupons.find(
+              (c) => c.code.toUpperCase() === normalized.couponCode?.trim().toUpperCase()
+            );
+            if (coup) coup.usedCount = (coup.usedCount || 0) + 1;
+          }
+        } catch (cErr: any) {
+          console.warn('[createOrder] Notice on coupon usedCount increment:', cErr?.message);
+        }
+      }
+
       return mapped;
     } catch (err: any) {
       console.error('[createOrder] Failed to persist order in PostgreSQL:', err?.message || err);

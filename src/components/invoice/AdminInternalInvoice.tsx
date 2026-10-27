@@ -141,8 +141,21 @@ export default function AdminInternalInvoice({
               <p className="font-bold text-sm text-charcoal mt-0.5">
                 {invoice.paymentMethod} ({invoice.paymentStatus})
               </p>
+              {invoice.couponCode && (
+                <div className="mt-1.5 pt-1.5 border-t border-stone-200">
+                  <p className="text-[10px] uppercase font-bold text-emerald-800">Coupon Discount Verified</p>
+                  <p className="text-xs text-emerald-900 font-semibold mt-0.5 flex items-center gap-1.5">
+                    <span className="font-mono bg-emerald-100 text-emerald-950 px-1.5 py-0.5 rounded text-[10px] font-bold border border-emerald-300">
+                      {invoice.couponCode}
+                    </span>
+                    {invoice.discountAmount ? (
+                      <span className="text-emerald-700 font-bold">(-{formatPrice(invoice.discountAmount)})</span>
+                    ) : null}
+                  </p>
+                </div>
+              )}
               {invoice.utrNumber && (
-                <p className="font-mono text-[10px] text-taupe mt-0.5">UTR: {invoice.utrNumber}</p>
+                <p className="font-mono text-[10px] text-taupe mt-1">UTR: {invoice.utrNumber}</p>
               )}
             </div>
             <div>
@@ -279,8 +292,15 @@ export default function AdminInternalInvoice({
                 </div>
               )}
               {invoice.discountAmount ? (
-                <div className="flex justify-between text-emerald-700">
-                  <span>Discount ({invoice.couponCode || 'COUPON'}):</span>
+                <div className="flex justify-between items-center text-emerald-800 bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-200 text-xs font-semibold">
+                  <span className="flex items-center gap-1.5">
+                    <span>🏷️ Coupon Discount</span>
+                    {invoice.couponCode && (
+                      <span className="bg-emerald-700 text-white text-[10px] px-1.5 py-0.5 rounded font-mono font-bold tracking-wider">
+                        {invoice.couponCode}
+                      </span>
+                    )}
+                  </span>
                   <span>-{formatPrice(invoice.discountAmount)}</span>
                 </div>
               ) : null}
@@ -288,6 +308,11 @@ export default function AdminInternalInvoice({
                 <span>Total Collected / Payable:</span>
                 <span className="text-[#9B7B1B] text-base">{formatPrice(invoice.total)}</span>
               </div>
+              {invoice.discountAmount ? (
+                <p className="text-[10px] text-emerald-800 text-right font-medium pt-0.5">
+                  Verified payment amount calculated after {formatPrice(invoice.discountAmount)} discount ({invoice.couponCode})
+                </p>
+              ) : null}
             </div>
           </div>
 

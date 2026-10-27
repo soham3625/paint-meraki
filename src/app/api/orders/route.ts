@@ -119,16 +119,24 @@ export async function POST(req: Request) {
       });
     }
 
-    // 3. Server-side Coupon & Discount Calculation
+    // 3. Server-side Coupon & Discount Calculation (Zero client trust)
     let verifiedDiscount = 0;
     let verifiedCouponCode: string | undefined;
 
-    if (inputCouponCode && typeof inputCouponCode === 'string') {
-      const couponResult = await validateCouponCode(inputCouponCode.trim(), serverSubtotal);
-      if (couponResult.valid && couponResult.discountAmount) {
-        verifiedDiscount = couponResult.discountAmount;
-        verifiedCouponCode = inputCouponCode.trim().toUpperCase();
+    if (inputCouponCode && typeof inputCouponCode === 'string' && inputCouponCode.trim()) {
+      const cleanCode = inputCouponCode.trim();
+      const couponResult = await validateCouponCode(cleanCode, serverSubtotal);
+      if (!couponResult.valid) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: couponResult.message || `The coupon code '${cleanCode}' is invalid, expired, or does not meet the minimum requirement.`,
+          },
+          { status: 400 }
+        );
       }
+      verifiedDiscount = couponResult.discountAmount || 0;
+      verifiedCouponCode = (couponResult.coupon?.code || cleanCode).toUpperCase();
     }
 
     // 4. Server-side Shipping & COD fee calculation from Business Settings

@@ -163,6 +163,15 @@ export default function CustomerDeliveryInvoice({
                 <span className="text-[#8A7770]">Payment Status:</span>
                 <span className="font-semibold text-[#181616]">{invoice.paymentStatus}</span>
               </div>
+              {invoice.couponCode && (
+                <div className="flex justify-between py-1 border-b border-[#EFE5DB]/60">
+                  <span className="text-[#8A7770]">Coupon Applied:</span>
+                  <span className="font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded text-[11px] border border-emerald-200 flex items-center gap-1">
+                    <span>🏷️ {invoice.couponCode}</span>
+                    {invoice.discountAmount ? <span>(-{formatPrice(invoice.discountAmount)})</span> : null}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between py-1">
                 <span className="text-[#8A7770]">Order Status:</span>
                 <span className="font-semibold text-[#5B8C5A]">{invoice.orderStatus}</span>
@@ -247,8 +256,15 @@ export default function CustomerDeliveryInvoice({
                 </div>
               )}
               {invoice.discountAmount && invoice.discountAmount > 0 ? (
-                <div className="flex justify-between text-[#5B8C5A] font-medium">
-                  <span>Discount ({invoice.couponCode || 'PROMO'})</span>
+                <div className="flex justify-between items-center text-emerald-800 bg-emerald-50/80 px-2.5 py-1.5 rounded-lg border border-emerald-200 font-semibold text-xs">
+                  <span className="flex items-center gap-1.5">
+                    <span>🏷️ Coupon Discount</span>
+                    {invoice.couponCode && (
+                      <span className="bg-emerald-700 text-white text-[10px] px-1.5 py-0.5 rounded font-mono font-bold tracking-wider">
+                        {invoice.couponCode}
+                      </span>
+                    )}
+                  </span>
                   <span>-{formatPrice(invoice.discountAmount)}</span>
                 </div>
               ) : null}
