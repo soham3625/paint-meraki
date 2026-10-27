@@ -416,70 +416,9 @@ export const products: Product[] = [
   },
 ];
 
-// ========== DEMO REVIEWS ==========
-// Clearly marked as demo data — replace with real reviews
-export const demoReviews: Review[] = [
-  {
-    id: 'rev-1',
-    customerName: 'Riya Sharma',
-    rating: 5,
-    review: 'The quality is amazing and the finishing is just perfect. Loved my customised frame!',
-    productName: 'Decorative Photo Frame',
-    productSlug: 'decorative-photo-frame-8-inch',
-    date: '2026-07-15',
-    verified: true,
-  },
-  {
-    id: 'rev-2',
-    customerName: 'Neha Patel',
-    rating: 5,
-    review: 'Beautiful products and such lovely packaging. You can feel the love in every piece.',
-    productName: 'Handcrafted Resin Pooja Thali',
-    productSlug: 'handcrafted-resin-pooja-thali-10-inch',
-    date: '2026-07-10',
-    verified: true,
-  },
-  {
-    id: 'rev-3',
-    customerName: 'Kajal Mehta',
-    rating: 5,
-    review: 'I ordered a custom gift and it turned out better than I imagined. Highly recommended!',
-    productName: 'Classic Geode Resin Clock',
-    productSlug: 'classic-geode-resin-clock-10-inch',
-    date: '2026-06-28',
-    verified: true,
-  },
-  {
-    id: 'rev-4',
-    customerName: 'Priya Desai',
-    rating: 4,
-    review: 'Ordered a geode clock for my living room. The colours are absolutely stunning. Every visitor asks about it!',
-    productName: '3-Piece Geode Resin Clock',
-    productSlug: '3-piece-geode-resin-clock-16-20-inch',
-    date: '2026-06-20',
-    verified: true,
-  },
-  {
-    id: 'rev-5',
-    customerName: 'Ananya Gupta',
-    rating: 5,
-    review: 'Got a pooja thali for Diwali and it was so beautifully made. The resin flowers look real! Will definitely order again.',
-    productName: 'Handcrafted Resin Pooja Thali',
-    productSlug: 'handcrafted-resin-pooja-thali-8-inch',
-    date: '2026-06-15',
-    verified: true,
-  },
-  {
-    id: 'rev-6',
-    customerName: 'Meera Joshi',
-    rating: 5,
-    review: 'The photo frame I ordered for my parents\' anniversary was perfect. The attention to detail is incredible.',
-    productName: 'Decorative Photo Frame',
-    productSlug: 'decorative-photo-frame-10-inch',
-    date: '2026-05-30',
-    verified: true,
-  },
-];
+// ========== REVIEWS ==========
+// Fresh store initialization — populated by authentic customer reviews
+export const demoReviews: Review[] = [];
 
 // Helper functions with live admin data synchronization
 export function getLiveProducts(): Product[] {

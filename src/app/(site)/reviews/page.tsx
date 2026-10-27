@@ -21,7 +21,7 @@ const ratingLabels: Record<number, string> = {
 };
 
 export default function ReviewsPage() {
-  const [reviews, setReviews] = useState<Review[]>(demoReviews);
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<'all' | '5' | '4' | '3' | 'verified'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -40,12 +40,12 @@ export default function ReviewsPage() {
       const res = await fetch('/api/reviews');
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           setReviews(data);
         }
       }
     } catch (e) {
-      // Keep demoReviews fallback
+      setReviews([]);
     } finally {
       setLoading(false);
     }
@@ -138,7 +138,7 @@ export default function ReviewsPage() {
       {/* Header Banner */}
       <div className="bg-white border-b border-beige/30">
         <div className="container-custom py-10 sm:py-14 text-center max-w-2xl mx-auto">
-          <p className="text-xs tracking-[0.25em] uppercase text-dusty-rose font-medium mb-2">♡ Testimonials & Praise</p>
+          <p className="text-xs tracking-[0.25em] uppercase text-dusty-rose font-medium mb-2">♡ Customer Testimonials</p>
           <h1 className="font-heading text-3xl sm:text-4xl font-semibold text-charcoal mb-3">
             What Our Customers Say
           </h1>
@@ -158,147 +158,170 @@ export default function ReviewsPage() {
       </div>
 
       <div className="container-custom py-8 max-w-4xl mx-auto space-y-8">
-        {/* Rating Breakdown & Stats */}
-        <div className="bg-white rounded-3xl border border-beige/30 p-6 sm:p-8 shadow-xs grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-          {/* Overall Score */}
-          <div className="text-center md:border-r md:border-beige/30 md:pr-6">
-            <p className="font-heading text-5xl font-bold text-charcoal">{averageRating.toFixed(1)}</p>
-            <div className="flex justify-center my-2">
-              <Rating value={averageRating} size="md" />
-            </div>
-            <p className="text-xs text-taupe">Based on {totalCount} verified reviews</p>
-            <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-semibold border border-emerald-200">
-              <CheckCircle size={13} /> 100% Authentic Feedback
-            </div>
+        {loading ? (
+          <div className="py-20 text-center text-taupe text-sm">
+            <div className="w-7 h-7 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+            Loading customer reviews...
           </div>
-
-          {/* Star Distribution Bars */}
-          <div className="space-y-2 md:col-span-2">
-            {[5, 4, 3, 2, 1].map((star) => {
-              const count = starCounts[star as keyof typeof starCounts] || 0;
-              const pct = totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
-              return (
-                <div key={star} className="flex items-center gap-3 text-xs">
-                  <span className="w-12 text-taupe font-medium flex items-center gap-1">
-                    {star} <Star size={12} className="fill-[#D4AF37] text-[#D4AF37]" />
-                  </span>
-                  <div className="flex-1 h-2 rounded-full bg-stone-100 overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-[#D4AF37] to-[#B89628] rounded-full transition-all duration-500"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                  <span className="w-10 text-right text-taupe font-mono text-[11px]">{pct}%</span>
+        ) : totalCount === 0 ? (
+          /* Empty / Fresh Store State */
+          <div className="bg-white rounded-3xl border border-beige/30 p-10 sm:p-14 text-center space-y-4 max-w-xl mx-auto shadow-xs">
+            <div className="w-16 h-16 rounded-3xl bg-[#FAF6EE] text-[#9B7B1B] border border-[#D4AF37]/30 flex items-center justify-center mx-auto">
+              <Sparkles size={28} />
+            </div>
+            <h3 className="font-heading text-xl sm:text-2xl font-bold text-charcoal">Be the First to Review</h3>
+            <p className="text-xs sm:text-sm text-taupe leading-relaxed">
+              We take immense pride in every handcrafted resin piece. If you own a Paint n Meraki artwork, share your thoughts and photos with our community!
+            </p>
+            <button
+              onClick={() => setModalOpen(true)}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-charcoal hover:bg-black text-white text-xs font-semibold shadow-xs transition-all transform hover:scale-102"
+            >
+              <Plus size={14} className="text-[#D4AF37]" />
+              Write the First Review
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Rating Breakdown & Stats */}
+            <div className="bg-white rounded-3xl border border-beige/30 p-6 sm:p-8 shadow-xs grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+              {/* Overall Score */}
+              <div className="text-center md:border-r md:border-beige/30 md:pr-6">
+                <p className="font-heading text-5xl font-bold text-charcoal">{averageRating.toFixed(1)}</p>
+                <div className="flex justify-center my-2">
+                  <Rating value={averageRating} size="md" />
                 </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Filter and Search Bar */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-beige/30 shadow-2xs">
-          {/* Quick Filter Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-            {[
-              { id: 'all', label: 'All Reviews' },
-              { id: '5', label: '5 Stars ★' },
-              { id: '4', label: '4 Stars ★' },
-              { id: '3', label: '3 Stars ★' },
-              { id: 'verified', label: 'Verified Only' },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveFilter(tab.id as any)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
-                  activeFilter === tab.id
-                    ? 'bg-dusty-rose text-white shadow-2xs'
-                    : 'bg-cream/40 text-taupe hover:bg-cream hover:text-charcoal'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Search Box */}
-          <div className="relative w-full sm:w-56">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-taupe" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search reviews..."
-              className="w-full pl-8 pr-3 py-1.5 text-xs bg-[#FAF6EE] border border-beige/40 rounded-xl text-charcoal focus:outline-hidden focus:border-[#D4AF37]"
-            />
-          </div>
-        </div>
-
-        {/* Reviews List */}
-        <div className="space-y-4">
-          {loading ? (
-            <div className="py-16 text-center text-taupe text-sm">Loading reviews...</div>
-          ) : filteredReviews.length === 0 ? (
-            <div className="bg-white rounded-3xl border border-beige/30 p-12 text-center space-y-3">
-              <MessageSquare className="w-8 h-8 text-taupe mx-auto opacity-50" />
-              <p className="font-heading text-lg font-semibold text-charcoal">No reviews match your filter</p>
-              <p className="text-xs text-taupe">Try selecting &quot;All Reviews&quot; or clear your search term.</p>
-            </div>
-          ) : (
-            filteredReviews.map((review) => (
-              <div
-                key={review.id}
-                className="bg-white rounded-2xl border border-beige/30 p-5 sm:p-6 shadow-2xs hover:shadow-xs transition-shadow space-y-3"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#FAF6EE] to-[#F3EBDD] border border-[#D4AF37]/30 flex items-center justify-center flex-shrink-0">
-                      <span className="font-serif font-bold text-[#9B7B1B] text-sm">
-                        {review.customerName.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-charcoal">{review.customerName}</p>
-                        {review.verified && (
-                          <span className="text-[10px] text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full font-medium border border-emerald-200">
-                            ✓ Verified Purchase
-                          </span>
-                        )}
-                        {review.isFeatured && (
-                          <span className="text-[10px] text-purple-800 bg-purple-50 px-2 py-0.5 rounded-full font-bold">
-                            Featured
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[11px] text-taupe">{review.date || 'Recent Customer'}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-1 text-[#D4AF37]">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <Star
-                        key={i}
-                        size={14}
-                        className={i < Math.round(review.rating) ? 'fill-[#D4AF37]' : 'text-stone-300'}
-                      />
-                    ))}
-                  </div>
+                <p className="text-xs text-taupe">Based on {totalCount} verified reviews</p>
+                <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-semibold border border-emerald-200">
+                  <CheckCircle size={13} /> 100% Authentic Feedback
                 </div>
-
-                <p className="text-xs sm:text-sm text-charcoal/85 leading-relaxed italic pt-1">
-                  &quot;{review.review}&quot;
-                </p>
-
-                {review.productName && (
-                  <div className="pt-2 border-t border-beige/20 flex items-center gap-1.5 text-xs text-[#9B7B1B]">
-                    <Sparkles size={12} />
-                    <span className="font-medium">Product: {review.productName}</span>
-                  </div>
-                )}
               </div>
-            ))
-          )}
-        </div>
+
+              {/* Star Distribution Bars */}
+              <div className="space-y-2 md:col-span-2">
+                {[5, 4, 3, 2, 1].map((star) => {
+                  const count = starCounts[star as keyof typeof starCounts] || 0;
+                  const pct = totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
+                  return (
+                    <div key={star} className="flex items-center gap-3 text-xs">
+                      <span className="w-12 text-taupe font-medium flex items-center gap-1">
+                        {star} <Star size={12} className="fill-[#D4AF37] text-[#D4AF37]" />
+                      </span>
+                      <div className="flex-1 h-2 rounded-full bg-stone-100 overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-[#D4AF37] to-[#B89628] rounded-full transition-all duration-500"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <span className="w-10 text-right text-taupe font-mono text-[11px]">{pct}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Filter and Search Bar */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-beige/30 shadow-2xs">
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+                {[
+                  { id: 'all', label: 'All Reviews' },
+                  { id: '5', label: '5 Stars ★' },
+                  { id: '4', label: '4 Stars ★' },
+                  { id: '3', label: '3 Stars ★' },
+                  { id: 'verified', label: 'Verified Only' },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveFilter(tab.id as any)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
+                      activeFilter === tab.id
+                        ? 'bg-dusty-rose text-white shadow-2xs'
+                        : 'bg-cream/40 text-taupe hover:bg-cream hover:text-charcoal'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="relative w-full sm:w-56">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-taupe" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search reviews..."
+                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-[#FAF6EE] border border-beige/40 rounded-xl text-charcoal focus:outline-hidden focus:border-[#D4AF37]"
+                />
+              </div>
+            </div>
+
+            {/* Reviews List */}
+            <div className="space-y-4">
+              {filteredReviews.length === 0 ? (
+                <div className="bg-white rounded-3xl border border-beige/30 p-12 text-center space-y-3">
+                  <MessageSquare className="w-8 h-8 text-taupe mx-auto opacity-50" />
+                  <p className="font-heading text-lg font-semibold text-charcoal">No reviews match your filter</p>
+                  <p className="text-xs text-taupe">Try selecting &quot;All Reviews&quot; or clear your search term.</p>
+                </div>
+              ) : (
+                filteredReviews.map((review) => (
+                  <div
+                    key={review.id}
+                    className="bg-white rounded-2xl border border-beige/30 p-5 sm:p-6 shadow-2xs hover:shadow-xs transition-shadow space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#FAF6EE] to-[#F3EBDD] border border-[#D4AF37]/30 flex items-center justify-center flex-shrink-0">
+                          <span className="font-serif font-bold text-[#9B7B1B] text-sm">
+                            {review.customerName.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold text-charcoal">{review.customerName}</p>
+                            {review.verified && (
+                              <span className="text-[10px] text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full font-medium border border-emerald-200">
+                                ✓ Verified Purchase
+                              </span>
+                            )}
+                            {review.isFeatured && (
+                              <span className="text-[10px] text-purple-800 bg-purple-50 px-2 py-0.5 rounded-full font-bold">
+                                Featured
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-taupe">{review.date || 'Recent Customer'}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1 text-[#D4AF37]">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Star
+                            key={i}
+                            size={14}
+                            className={i < Math.round(review.rating) ? 'fill-[#D4AF37]' : 'text-stone-300'}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    <p className="text-xs sm:text-sm text-charcoal/85 leading-relaxed italic pt-1">
+                      &quot;{review.review}&quot;
+                    </p>
+
+                    {review.productName && (
+                      <div className="pt-2 border-t border-beige/20 flex items-center gap-1.5 text-xs text-[#9B7B1B]">
+                        <Sparkles size={12} />
+                        <span className="font-medium">Product: {review.productName}</span>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Customer Write Review Modal */}

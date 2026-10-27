@@ -30,7 +30,7 @@ export default function ProductDetailPage() {
   const initialProduct = getProductBySlug(slug) || defaultProducts.find((p) => p.slug === slug);
   const [product, setProduct] = useState<Product | undefined>(initialProduct);
   const [allProducts, setAllProducts] = useState<Product[]>(defaultProducts);
-  const [reviewsList, setReviewsList] = useState<Review[]>(defaultReviews);
+  const [reviewsList, setReviewsList] = useState<Review[]>([]);
   const [settings, setSettings] = useState<Partial<BusinessSettings>>({
     whatsappNumber: '919878541310',
     freeShippingThreshold: 2000,
@@ -118,8 +118,13 @@ export default function ProductDetailPage() {
     .slice(0, 4);
 
   const productReviews = reviewsList
-    .filter((r) => r.productSlug === product.slug || r.productName === product.name || (r.status === 'APPROVED' && (!r.productSlug || r.productSlug === '')))
-    .slice(0, 5);
+    .filter(
+      (r) =>
+        (r.productId === product.id || r.productSlug === product.slug || r.productName === product.name) &&
+        (r.status === 'APPROVED' || !r.status) &&
+        r.isVisible !== false
+    )
+    .slice(0, 10);
 
   const currentPrice = selectedSize?.price ?? product.price;
 

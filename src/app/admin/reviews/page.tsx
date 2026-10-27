@@ -252,10 +252,16 @@ export default function AdminReviewsPage() {
       {loading ? (
         <div className="py-20 text-center text-taupe text-sm">Loading reviews...</div>
       ) : filteredReviews.length === 0 ? (
-        <div className="py-20 text-center space-y-2 bg-white rounded-2xl border border-[#EAE3D6]">
+        <div className="py-20 text-center space-y-2 bg-white rounded-2xl border border-[#EAE3D6] p-8">
           <MessageSquare className="w-8 h-8 text-taupe mx-auto opacity-50" />
-          <p className="font-serif text-base font-bold text-charcoal">No reviews found</p>
-          <p className="text-xs text-taupe">Customer ratings from the storefront and customer orders will appear here.</p>
+          <p className="font-serif text-base font-bold text-charcoal">
+            {reviews.length === 0 ? 'Fresh Reviews Section — No Customer Reviews Yet' : 'No matching reviews found'}
+          </p>
+          <p className="text-xs text-taupe max-w-md mx-auto">
+            {reviews.length === 0
+              ? 'All demo reviews have been cleared. As real customers leave feedback on the storefront or from their delivered orders in My Orders, their reviews will appear here live for you to moderate.'
+              : 'Try clearing your search query or adjusting your filters.'}
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

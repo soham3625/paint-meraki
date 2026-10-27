@@ -312,8 +312,8 @@ if (!globalRuntime._orders || globalRuntime._orders.length === 0) {
 if (!globalRuntime._customOrders || globalRuntime._customOrders.length === 0) {
   globalRuntime._customOrders = [...defaultCustomOrders];
 }
-if (!globalRuntime._reviews || globalRuntime._reviews.length === 0) {
-  globalRuntime._reviews = [...seedReviews];
+if (!globalRuntime._reviews) {
+  globalRuntime._reviews = [];
 }
 if (!globalRuntime._settings) {
   globalRuntime._settings = { ...defaultSettings };
@@ -977,29 +977,17 @@ async function autoSeedDatabase() {
         }
       }
 
-      // 9. Seed Reviews if empty
-      const reviewCount = await prisma.review.count();
-      if (reviewCount === 0) {
-        for (const rev of seedReviews) {
-          let matchedProdId: string | null = null;
-          if (rev.productSlug) {
-            const p = await prisma.product.findUnique({ where: { slug: rev.productSlug } });
-            if (p) matchedProdId = p.id;
-          }
-          await prisma.review.create({
-            data: {
-              id: rev.id,
-              customerName: rev.customerName,
-              rating: rev.rating,
-              review: rev.review,
-              productId: matchedProdId,
-              verified: rev.verified ?? true,
-              isFeatured: rev.isFeatured ?? false,
-              isVisible: rev.isVisible ?? true,
-            },
-          });
-        }
-      }
+      // 9. Purge any demo reviews from PostgreSQL to ensure fresh customer reviews
+      try {
+        await prisma.review.deleteMany({
+          where: {
+            OR: [
+              { id: { in: ['rev-1', 'rev-2', 'rev-3', 'rev-4', 'rev-5', 'rev-6'] } },
+              { customerName: { in: ['Riya Sharma', 'Neha Patel', 'Kajal Mehta', 'Priya Desai', 'Ananya Gupta', 'Meera Joshi'] } },
+            ],
+          },
+        });
+      } catch { }
     } catch (err: any) {
       console.warn('[autoSeedDatabase] Table structure check or seed notice:', err.message);
     } finally {
@@ -2336,8 +2324,8 @@ export async function getAllReviews(): Promise<Review[]> {
       console.warn('[getAllReviews] Prisma read notice:', err.message);
     }
   }
-  if (!globalRuntime._reviews || globalRuntime._reviews.length === 0) {
-    globalRuntime._reviews = [...seedReviews];
+  if (!globalRuntime._reviews) {
+    globalRuntime._reviews = [];
   }
   return globalRuntime._reviews;
 }
@@ -2383,7 +2371,7 @@ export async function createReview(data: {
   };
 
   // Add to in-memory runtime cache immediately
-  const existing = globalRuntime._reviews || [...seedReviews];
+  const existing = globalRuntime._reviews || [];
   globalRuntime._reviews = [createdReview, ...existing.filter((r) => r.id !== createdReview.id)];
 
   if (isDbConfigured()) {
@@ -2459,7 +2447,7 @@ export async function createReview(data: {
 }
 
 export async function updateReviewStatus(id: string, updates: Partial<Review>): Promise<Review | undefined> {
-  const list = globalRuntime._reviews || [...seedReviews];
+  const list = globalRuntime._reviews || [];
   const idx = list.findIndex((r) => r.id === id);
   if (idx === -1) return undefined;
 
