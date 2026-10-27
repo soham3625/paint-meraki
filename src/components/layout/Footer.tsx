@@ -37,7 +37,6 @@ const infoLinks = [
   { name: 'Reviews', href: '/reviews' },
   { name: 'Contact', href: '/contact' },
   { name: 'My Account', href: '/account' },
-  { name: 'Admin Portal', href: '/admin' },
 ];
 
 const careLinks = [
