@@ -72,10 +72,10 @@ export default function CustomerDeliveryInvoice({
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
                 <h1 className="font-heading text-2xl sm:text-3xl font-bold tracking-wide text-[#181616]">
-                  PAINT MERAKI
+                  {invoice.store.name || 'Paint_n_Meraki'}
                 </h1>
                 <p className="text-[11px] uppercase tracking-[0.25em] text-[#C5A572] font-semibold mt-0.5">
-                  Handcrafted Art &bull; Made with Love
+                  {invoice.store.tagline || 'Handcrafted Art • Made with Love'}
                 </p>
                 <div className="text-[11px] text-[#8A7770] mt-2 space-y-0.5">
                   <p>{invoice.store.address}</p>
@@ -243,11 +243,22 @@ export default function CustomerDeliveryInvoice({
           {/* Footer */}
           <div className="border-t border-[#EFE5DB] pt-6 text-center text-xs text-[#8A7770] space-y-2">
             <p className="font-heading italic text-[#181616] text-sm">
-              &quot;Thank you for choosing Paint Meraki ♡ Every piece is handcrafted with love.&quot;
+              &quot;Thank you for choosing {invoice.store.name || 'Paint_n_Meraki'} ♡ Every piece is handcrafted with love.&quot;
             </p>
             <div className="flex flex-wrap items-center justify-center gap-4 text-[11px] pt-1">
               <span>🌐 {invoice.store.website}</span>
-              <span>📸 Instagram: {invoice.store.instagram}</span>
+              {invoice.store.instagramUrl ? (
+                <a
+                  href={invoice.store.instagramUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:underline text-[#181616] font-medium"
+                >
+                  📸 Instagram: {invoice.store.instagram}
+                </a>
+              ) : (
+                <span>📸 Instagram: {invoice.store.instagram}</span>
+              )}
               <span>💬 WhatsApp: {invoice.store.whatsapp}</span>
             </div>
             <p className="text-[10px] text-[#8A7770]/70 pt-2">

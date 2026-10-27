@@ -36,8 +36,8 @@ export default function AdminOrderInvoicePage({
       try {
         // Fetch both invoices so admin can switch seamlessly
         const [adminRes, custRes] = await Promise.all([
-          fetch(`/api/orders/${encodeURIComponent(id)}/invoice?type=admin`),
-          fetch(`/api/orders/${encodeURIComponent(id)}/invoice?type=customer`),
+          fetch(`/api/orders/${encodeURIComponent(id)}/invoice?type=admin`, { cache: 'no-store' }),
+          fetch(`/api/orders/${encodeURIComponent(id)}/invoice?type=customer`, { cache: 'no-store' }),
         ]);
 
         if (adminRes.ok) {

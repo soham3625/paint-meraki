@@ -31,7 +31,7 @@ export default function CustomerOrderInvoicePage({
 
       try {
         const cleanNum = (orderNumber || '').toUpperCase().replace('#', '').trim();
-        const res = await fetch(`/api/orders/${encodeURIComponent(cleanNum)}/invoice?type=customer`);
+        const res = await fetch(`/api/orders/${encodeURIComponent(cleanNum)}/invoice?type=customer`, { cache: 'no-store' });
 
         if (res.status === 401 || res.status === 403) {
           setIsUnauthorized(true);

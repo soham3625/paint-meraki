@@ -35,6 +35,7 @@ export interface CustomerInvoiceData {
     address: string;
     website: string;
     instagram: string;
+    instagramUrl?: string;
   };
 
   // Customer info (Customer Safe)
@@ -257,14 +258,21 @@ export async function getCustomerInvoiceData(
         : 'Pending Verification',
 
     store: {
-      name: 'Paint Meraki',
-      tagline: 'Handcrafted Resin Masterpieces & Custom Decor',
-      logo: settings.logo || '/logo.png',
-      email: settings.email || 'hello@paintmeraki.com',
-      whatsapp: settings.whatsappNumber ? `+${settings.whatsappNumber.replace(/\D/g, '')}` : '+91 98785 41310',
+      name: settings.businessName || 'Paint_n_Meraki',
+      tagline: 'Handcrafted Resin Art • Made with Love',
+      logo: settings.logo || '/logo.jpg',
+      email: settings.email || 'paintnmeraki@gmail.com',
+      whatsapp: settings.whatsappNumber
+        ? (settings.whatsappNumber.startsWith('+') ? settings.whatsappNumber : `+${settings.whatsappNumber.replace(/\D/g, '')}`)
+        : '+917284075825',
       address: settings.businessAddress || 'Gujarat, India',
       website: process.env.NEXT_PUBLIC_SITE_URL?.replace(/^https?:\/\//, '') || 'paintnmeraki.vercel.app',
-      instagram: '@paint.meraki',
+      instagram: settings.instagramUrl
+        ? (settings.instagramUrl.includes('instagram.com/')
+            ? `@${settings.instagramUrl.split('instagram.com/')[1]?.replace(/\/$/, '')}`
+            : settings.instagramUrl.startsWith('@') ? settings.instagramUrl : `@${settings.instagramUrl}`)
+        : '@paint.meraki',
+      instagramUrl: settings.instagramUrl || 'https://www.instagram.com/paint.meraki',
     },
 
     customer: {

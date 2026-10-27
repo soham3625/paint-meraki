@@ -3,6 +3,9 @@ import { getCurrentCustomerSession } from '@/lib/auth-session';
 import { getAdminSession } from '@/lib/auth/admin-auth';
 import { getCustomerInvoiceData, getAdminInvoiceData } from '@/lib/services/invoice-service';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> }

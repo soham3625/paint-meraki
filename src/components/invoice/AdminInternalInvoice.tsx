@@ -77,7 +77,7 @@ export default function AdminInternalInvoice({
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="font-heading text-2xl font-bold tracking-tight text-charcoal">
-                    paint_n_meraki
+                    {invoice.store?.businessName || 'Paint_n_Meraki'}
                   </h1>
                   <span className="bg-stone-900 text-gold-light text-[10px] uppercase font-mono px-2 py-0.5 rounded font-bold">
                     INTERNAL OPS

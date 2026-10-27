@@ -32,13 +32,13 @@ import {
 
 // Default Business Settings
 const defaultSettings: BusinessSettings = {
-  businessName: 'paint_n_meraki',
+  businessName: 'Paint_n_Meraki',
   logo: '/logo.jpg',
   favicon: '/logo.jpg',
-  whatsappNumber: '919878541310',
-  instagramUrl: 'https://www.instagram.com/paint.meraki',
-  email: 'hello@paintmeraki.com',
-  upiId: 'paintmeraki@upi',
+  whatsappNumber: '917284075825',
+  instagramUrl: 'https://www.instagram.com/paint_n_meraki/',
+  email: 'paintnmeraki@gmail.com',
+  upiId: '7284075825-2@ibl',
   upiQrCode: '',
   codEnabled: true,
   codMinOrder: 0,
@@ -357,7 +357,7 @@ function mapPrismaProductToAppProduct(dbP: any): Product {
   } else if (typeof dbP.sizes === 'string') {
     try {
       sizes = JSON.parse(dbP.sizes);
-    } catch {}
+    } catch { }
   }
 
   return {
@@ -483,7 +483,7 @@ export async function ensureDatabaseTables(): Promise<void> {
       for (const q of enumQueries) {
         try {
           await prisma.$executeRawUnsafe(q);
-        } catch {}
+        } catch { }
       }
 
       // 2. Ensure BusinessSettings table and required columns
@@ -521,7 +521,7 @@ export async function ensureDatabaseTables(): Promise<void> {
       for (const q of businessAlterQueries) {
         try {
           await prisma.$executeRawUnsafe(q);
-        } catch {}
+        } catch { }
       }
 
       // 3. Ensure HomepageConfig table
@@ -1308,10 +1308,10 @@ function normalizeOrderItem(item: any, idx: number): OrderItem {
     typeof item.price === 'number' && !isNaN(item.price)
       ? item.price
       : typeof item.selectedSize?.price === 'number'
-      ? item.selectedSize.price
-      : typeof item.product?.price === 'number'
-      ? item.product.price
-      : 0;
+        ? item.selectedSize.price
+        : typeof item.product?.price === 'number'
+          ? item.product.price
+          : 0;
 
   const sizeStr =
     typeof item.selectedSize === 'string'
