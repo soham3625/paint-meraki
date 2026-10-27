@@ -74,18 +74,27 @@ export default function AdminInternalInvoice({
           {/* Internal Header */}
           <div className="border-b-2 border-charcoal pb-6 mb-6">
             <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="font-heading text-2xl font-bold tracking-tight text-charcoal">
-                    {invoice.store?.businessName || 'Paint_n_Meraki'}
-                  </h1>
-                  <span className="bg-stone-900 text-gold-light text-[10px] uppercase font-mono px-2 py-0.5 rounded font-bold">
-                    INTERNAL OPS
-                  </span>
+              <div className="flex items-start gap-3.5">
+                {(invoice.store?.logo || '/logo.jpg') && (
+                  <img
+                    src={invoice.store?.logo || '/logo.jpg'}
+                    alt={invoice.store?.businessName || 'Paint_n_Meraki'}
+                    className="w-12 h-12 rounded-xl object-contain border border-[#EAE3D6] bg-white p-0.5 shrink-0 shadow-xs"
+                  />
+                )}
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h1 className="font-heading text-2xl font-bold tracking-tight text-charcoal">
+                      {invoice.store?.businessName || 'Paint_n_Meraki'}
+                    </h1>
+                    <span className="bg-stone-900 text-gold-light text-[10px] uppercase font-mono px-2 py-0.5 rounded font-bold">
+                      INTERNAL OPS
+                    </span>
+                  </div>
+                  <p className="text-xs text-taupe mt-1">
+                    Master Fulfillment & Dispatch Record &bull; Internal Copy
+                  </p>
                 </div>
-                <p className="text-xs text-taupe mt-1">
-                  Master Fulfillment & Dispatch Record &bull; Internal Copy
-                </p>
               </div>
 
               <div className="text-left sm:text-right text-xs space-y-1">

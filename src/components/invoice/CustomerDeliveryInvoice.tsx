@@ -70,21 +70,30 @@ export default function CustomerDeliveryInvoice({
           {/* Header */}
           <div className="border-b border-[#EFE5DB] pb-6 mb-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div>
-                <h1 className="font-heading text-2xl sm:text-3xl font-bold tracking-wide text-[#181616]">
-                  {invoice.store.name || 'Paint_n_Meraki'}
-                </h1>
-                <p className="text-[11px] uppercase tracking-[0.25em] text-[#C5A572] font-semibold mt-0.5">
-                  {invoice.store.tagline || 'Handcrafted Art • Made with Love'}
-                </p>
-                <div className="text-[11px] text-[#8A7770] mt-2 space-y-0.5">
-                  <p>{invoice.store.address}</p>
-                  <p>
-                    WhatsApp / Phone: <span className="font-medium text-[#181616]">{invoice.store.whatsapp}</span>
+              <div className="flex items-start gap-3.5 sm:gap-4">
+                {(invoice.store.logo || '/logo.jpg') && (
+                  <img
+                    src={invoice.store.logo || '/logo.jpg'}
+                    alt={invoice.store.name || 'Paint_n_Meraki'}
+                    className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl object-contain border border-[#EAE3D6] bg-white p-0.5 shrink-0 shadow-xs"
+                  />
+                )}
+                <div>
+                  <h1 className="font-heading text-2xl sm:text-3xl font-bold tracking-wide text-[#181616]">
+                    {invoice.store.name || 'Paint_n_Meraki'}
+                  </h1>
+                  <p className="text-[11px] uppercase tracking-[0.25em] text-[#C5A572] font-semibold mt-0.5">
+                    {invoice.store.tagline || 'Handcrafted Art • Made with Love'}
                   </p>
-                  <p>
-                    Email: <span className="font-medium text-[#181616]">{invoice.store.email}</span>
-                  </p>
+                  <div className="text-[11px] text-[#8A7770] mt-2 space-y-0.5">
+                    <p>{invoice.store.address}</p>
+                    <p>
+                      WhatsApp / Phone: <span className="font-medium text-[#181616]">{invoice.store.whatsapp}</span>
+                    </p>
+                    <p>
+                      Email: <span className="font-medium text-[#181616]">{invoice.store.email}</span>
+                    </p>
+                  </div>
                 </div>
               </div>
 
