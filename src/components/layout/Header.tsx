@@ -24,6 +24,7 @@ export default function Header() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [categoriesList, setCategoriesList] = useState<Category[]>(defaultCategories);
+  const [logoUrl, setLogoUrl] = useState('/logo.jpg');
   const pathname = usePathname();
   const router = useRouter();
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -39,6 +40,13 @@ export default function Header() {
         if (Array.isArray(data) && data.length > 0) {
           setCategoriesList(data);
         }
+      })
+      .catch(() => {});
+
+    fetch('/api/settings')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.logo) setLogoUrl(data.logo);
       })
       .catch(() => {});
   }, []);
@@ -121,7 +129,7 @@ export default function Header() {
                 <div className={`transition-all duration-300 ${isScrolled ? 'w-10 h-10' : 'w-12 h-12 sm:w-14 sm:h-14'}`}>
                   <div className="w-full h-full rounded-full border-2 border-charcoal/80 flex items-center justify-center bg-ivory overflow-hidden relative">
                     <img
-                      src="/logo.jpg"
+                      src={logoUrl || '/logo.jpg'}
                       alt="paint_n_meraki Logo"
                       className="w-full h-full object-cover"
                       onError={(e) => {

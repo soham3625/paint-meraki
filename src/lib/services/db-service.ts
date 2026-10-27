@@ -33,7 +33,8 @@ import {
 // Default Business Settings
 const defaultSettings: BusinessSettings = {
   businessName: 'paint_n_meraki',
-  logo: '/logo.png',
+  logo: '/logo.jpg',
+  favicon: '/logo.jpg',
   whatsappNumber: '919878541310',
   instagramUrl: 'https://www.instagram.com/paint.meraki',
   email: 'hello@paintmeraki.com',
@@ -571,6 +572,7 @@ async function autoSeedDatabase() {
             id: 'default',
             businessName: defaultSettings.businessName,
             logo: defaultSettings.logo,
+            favicon: defaultSettings.favicon,
             whatsappNumber: defaultSettings.whatsappNumber,
             instagramUrl: defaultSettings.instagramUrl,
             email: defaultSettings.email,
@@ -1408,7 +1410,8 @@ export async function getBusinessSettings(): Promise<BusinessSettings> {
       if (dbSettings) {
         const mapped: BusinessSettings = {
           businessName: dbSettings.businessName,
-          logo: dbSettings.logo,
+          logo: dbSettings.logo || '/logo.jpg',
+          favicon: (dbSettings as any).favicon || dbSettings.logo || '/logo.jpg',
           whatsappNumber: dbSettings.whatsappNumber,
           instagramUrl: dbSettings.instagramUrl,
           email: dbSettings.email,
@@ -1457,6 +1460,18 @@ export async function updateBusinessSettings(data: Partial<BusinessSettings>): P
       });
     } catch (err: any) {
       console.warn('[updateBusinessSettings] Database save notice (persisted to runtime store):', err?.message);
+      try {
+        const { favicon: _f1, ...safeData } = data as any;
+        const { favicon: _f2, ...safeUpdated } = updated as any;
+        await prisma.businessSettings.upsert({
+          where: { id: 'default' },
+          update: safeData,
+          create: {
+            id: 'default',
+            ...safeUpdated,
+          },
+        });
+      } catch (inner) {}
     }
   }
 

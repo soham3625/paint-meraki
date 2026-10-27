@@ -7,6 +7,7 @@
 // ============================================
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
   Home,
   Save,
@@ -19,6 +20,7 @@ import {
   RefreshCw,
   Clock,
   Sparkle,
+  Globe,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { cleanImagePath } from '@/lib/image-utils';
@@ -270,6 +272,25 @@ export default function AdminHomepageManagerPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left 2 Columns: Hero Settings & Curation */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Quick shortcut to Title Logo / Favicon */}
+          <div className="bg-gradient-to-r from-[#FAF7F2] to-white p-4 rounded-xl border border-[#D4AF37]/30 flex items-center justify-between gap-4 shadow-xs">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-[#D4AF37]/15 flex items-center justify-center shrink-0">
+                <Globe className="w-4 h-4 text-[#8C6D1F]" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-charcoal">Looking to change the Website Title Logo or Tab Favicon?</p>
+                <p className="text-[11px] text-taupe">Upload custom browser tab icons and brand logos easily in Store Settings.</p>
+              </div>
+            </div>
+            <Link
+              href="/admin/settings"
+              className="px-3.5 py-1.5 rounded-lg bg-charcoal hover:bg-black text-ivory text-xs font-semibold shrink-0 transition-colors"
+            >
+              Manage Title Logo →
+            </Link>
+          </div>
+
           {/* 1. Hero Banner Settings */}
           <div className="bg-white rounded-2xl border border-[#EAE3D6] shadow-xs p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-[#EAE3D6] pb-3">

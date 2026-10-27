@@ -126,8 +126,16 @@ export default function Footer() {
           {/* Brand */}
           <div className="col-span-2 md:col-span-4 lg:col-span-1">
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 rounded-full border-2 border-ivory/60 flex items-center justify-center">
-                <span className="font-accent text-ivory text-[8px] leading-none">
+              <div className="w-10 h-10 rounded-full border-2 border-ivory/60 flex items-center justify-center overflow-hidden bg-ivory/10 relative">
+                <img
+                  src={settings.logo || '/logo.jpg'}
+                  alt="paint_n_meraki"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = 'none';
+                  }}
+                />
+                <span className="font-accent text-ivory text-[8px] leading-none absolute inset-0 flex items-center justify-center -z-10">
                   paint<br />meraki
                 </span>
               </div>

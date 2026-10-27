@@ -40,6 +40,7 @@ export async function PUT(req: Request) {
     revalidatePath('/cart');
     revalidatePath('/checkout');
     revalidatePath('/api/settings');
+    revalidatePath('/api/favicon');
 
     return NextResponse.json({ success: true, settings: updated });
   } catch (error: any) {

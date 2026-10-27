@@ -219,7 +219,8 @@ model PasswordResetToken {
 model BusinessSettings {
   id                    String   @id @default("default")
   businessName          String   @default("paint_n_meraki")
-  logo                  String   @default("/logo.png")
+  logo                  String   @default("/logo.jpg")
+  favicon               String?  @default("/logo.jpg")
   whatsappNumber        String   @default("919878541310")
   instagramUrl          String   @default("https://www.instagram.com/paint.meraki")
   email                 String   @default("hello@paintmeraki.com")

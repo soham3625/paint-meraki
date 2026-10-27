@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Toaster } from 'react-hot-toast';
+import DynamicFavicon from '@/components/layout/DynamicFavicon';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -39,6 +40,14 @@ export const metadata: Metadata = {
     title: 'paint_n_meraki | Handcrafted Resin Art',
     description: 'Handcrafted resin art & personalised creations made with love.',
   },
+  icons: {
+    icon: [
+      { url: '/api/favicon', sizes: 'any' },
+      { url: '/icon.png', type: 'image/png' },
+    ],
+    shortcut: '/api/favicon',
+    apple: '/apple-icon.png',
+  },
   robots: {
     index: true,
     follow: true,
@@ -53,6 +62,7 @@ export default function RootLayout({
   return (
     <html lang="en" data-scroll-behavior="smooth" className="h-full antialiased">
       <body className="min-h-full flex flex-col bg-ivory text-charcoal">
+        <DynamicFavicon />
         {children}
         <Toaster
           position="bottom-right"

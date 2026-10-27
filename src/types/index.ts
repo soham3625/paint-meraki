@@ -210,6 +210,7 @@ export type CustomOrderStatus =
 export interface BusinessSettings {
   businessName: string;
   logo: string;
+  favicon?: string;
   whatsappNumber: string;
   instagramUrl: string;
   email: string;

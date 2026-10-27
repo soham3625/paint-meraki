@@ -10,7 +10,8 @@ export async function GET() {
     // Return only customer-facing public store configuration
     const publicSettings = {
       businessName: settings.businessName || 'paint_n_meraki',
-      logo: settings.logo || '/logo.png',
+      logo: settings.logo || '/logo.jpg',
+      favicon: settings.favicon || settings.logo || '/logo.jpg',
       whatsappNumber: settings.whatsappNumber,
       instagramUrl: settings.instagramUrl,
       email: settings.email,
