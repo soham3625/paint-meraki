@@ -18,8 +18,33 @@ export default function CartPage() {
   const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
   const [couponError, setCouponError] = useState<string | null>(null);
 
+  const [storeSettings, setStoreSettings] = useState<{
+    freeShippingThreshold: number;
+    shippingCharge: number;
+  }>({
+    freeShippingThreshold: 2000,
+    shippingCharge: 99,
+  });
+
+  useEffect(() => {
+    fetch('/api/settings', { cache: 'no-store' })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && typeof data.freeShippingThreshold === 'number') {
+          setStoreSettings({
+            freeShippingThreshold: data.freeShippingThreshold,
+            shippingCharge: typeof data.shippingCharge === 'number' ? data.shippingCharge : 99,
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const subtotal = getSubtotal();
-  const shipping = getShippingCharge();
+  const freeThreshold = storeSettings.freeShippingThreshold;
+  const standardShipping = storeSettings.shippingCharge;
+  const isFreeShipping = subtotal >= freeThreshold;
+  const shipping = isFreeShipping ? 0 : standardShipping;
 
   let discountAmount = 0;
   if (appliedCoupon) {
@@ -314,11 +339,11 @@ export default function CartPage() {
                 )}
                 <div className="flex justify-between text-taupe">
                   <span>Shipping</span>
-                  <span>{shipping === 0 ? <span className="text-success">Free</span> : formatPrice(shipping)}</span>
+                  <span>{shipping === 0 ? <span className="text-success font-semibold">Free</span> : formatPrice(shipping)}</span>
                 </div>
-                {shipping > 0 && (
-                  <p className="text-xs text-dusty-rose">
-                    Add {formatPrice(2000 - subtotal)} more for free shipping
+                {shipping > 0 && freeThreshold > subtotal && (
+                  <p className="text-xs text-dusty-rose font-medium animate-fade-in">
+                    Add {formatPrice(freeThreshold - subtotal)} more for free shipping
                   </p>
                 )}
                 <div className="border-t border-beige/30 pt-3">
@@ -339,7 +364,7 @@ export default function CartPage() {
 
               <div className="mt-4 pt-4 border-t border-beige/30 space-y-2 text-xs text-taupe">
                 <p>🔒 Secure checkout</p>
-                <p>📦 Free shipping on orders above ₹2,000</p>
+                <p>📦 Free shipping on orders above {formatPrice(freeThreshold)}</p>
                 <p>💬 Need help? Chat on WhatsApp</p>
               </div>
             </div>

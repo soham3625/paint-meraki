@@ -55,7 +55,7 @@ export default function ProductDetailPage() {
         const [pRes, rRes, sRes] = await Promise.all([
           fetch('/api/products'),
           fetch('/api/reviews'),
-          fetch('/api/settings'),
+          fetch('/api/settings', { cache: 'no-store' }),
         ]);
 
         if (pRes.ok) {

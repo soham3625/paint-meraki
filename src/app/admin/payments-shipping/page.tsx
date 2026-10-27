@@ -37,7 +37,7 @@ export default function AdminPaymentsShippingPage() {
   const [deliveryTime, setDeliveryTime] = useState('3-5 business days');
 
   useEffect(() => {
-    fetch('/api/admin/settings')
+    fetch('/api/admin/settings', { cache: 'no-store' })
       .then((res) => res.json())
       .then((data: BusinessSettings) => {
         setSettings(data);
@@ -47,8 +47,8 @@ export default function AdminPaymentsShippingPage() {
         setCodFee(data.codFee || 0);
         setCodMinOrder(data.codMinOrder || 0);
         setCodMaxOrder(data.codMaxOrder || 10000);
-        setShippingCharge(data.shippingCharge || 99);
-        setFreeShippingThreshold(data.freeShippingThreshold || 2000);
+        setShippingCharge(typeof data.shippingCharge === 'number' ? data.shippingCharge : 99);
+        setFreeShippingThreshold(typeof data.freeShippingThreshold === 'number' ? data.freeShippingThreshold : 2000);
         setProcessingTime(data.processingTime || '5-7 business days');
         setDeliveryTime(data.deliveryTime || '3-5 business days');
       })

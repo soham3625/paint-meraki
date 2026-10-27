@@ -1804,9 +1804,26 @@ export async function getBusinessSettings(): Promise<BusinessSettings> {
 
 export async function updateBusinessSettings(data: Partial<BusinessSettings>): Promise<BusinessSettings> {
   const current = await getBusinessSettings();
+
+  // If freeShippingThreshold was updated and announcement text was not explicitly altered,
+  // ensure any free shipping mention in the announcement text stays synchronized
+  let synchronizedAnnouncement = data.announcementText !== undefined ? data.announcementText : current.announcementText;
+  if (data.freeShippingThreshold !== undefined && !data.announcementText && synchronizedAnnouncement) {
+    const formattedNum = Number(data.freeShippingThreshold).toLocaleString('en-IN');
+    synchronizedAnnouncement = synchronizedAnnouncement.replace(
+      /Free Shipping (?:Above|on orders above)\s*₹[0-9,]+/i,
+      `Free Shipping Above ₹${formattedNum}`
+    );
+  }
+
+  const payloadToPersist = {
+    ...data,
+    ...(data.freeShippingThreshold !== undefined && !data.announcementText ? { announcementText: synchronizedAnnouncement } : {}),
+  };
+
   const updated: BusinessSettings = {
     ...current,
-    ...data,
+    ...payloadToPersist,
     updatedAt: new Date().toISOString(),
   };
 
@@ -1818,7 +1835,7 @@ export async function updateBusinessSettings(data: Partial<BusinessSettings>): P
       await ensureDatabaseTables();
       await prisma.businessSettings.upsert({
         where: { id: 'default' },
-        update: { ...data },
+        update: { ...payloadToPersist },
         create: {
           id: 'default',
           ...updated,

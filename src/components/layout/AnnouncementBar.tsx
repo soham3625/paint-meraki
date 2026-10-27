@@ -14,11 +14,22 @@ export default function AnnouncementBar() {
   );
 
   useEffect(() => {
-    fetch('/api/settings')
+    fetch('/api/settings', { cache: 'no-store' })
       .then((res) => res.json())
       .then((data) => {
-        if (data.announcementText) setAnnouncementText(data.announcementText);
-        if (data.announcementEnabled === false) setIsVisible(false);
+        if (data.announcementEnabled === false) {
+          setIsVisible(false);
+          return;
+        }
+        let text = data.announcementText || '♡ Handmade with Love | ✦ Custom Orders Available | Free Shipping Above ₹2,000 ♡';
+        if (typeof data.freeShippingThreshold === 'number') {
+          const formattedThreshold = `₹${data.freeShippingThreshold.toLocaleString('en-IN')}`;
+          text = text.replace(
+            /Free Shipping (?:Above|on orders above)\s*₹[0-9,]+/i,
+            `Free Shipping Above ${formattedThreshold}`
+          );
+        }
+        setAnnouncementText(text);
       })
       .catch(() => {});
   }, []);

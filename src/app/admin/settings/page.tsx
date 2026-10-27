@@ -46,7 +46,7 @@ export default function AdminSettingsPage() {
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetch('/api/admin/settings')
+    fetch('/api/admin/settings', { cache: 'no-store' })
       .then((res) => res.json())
       .then((data: BusinessSettings) => {
         setSettings(data);
@@ -55,11 +55,19 @@ export default function AdminSettingsPage() {
         const currentFavicon = data.favicon || currentLogo || '/logo.jpg';
         setLogo(currentLogo);
         setFavicon(currentFavicon);
-        setWhatsappNumber(data.whatsappNumber || '919878541310');
-        setInstagramUrl(data.instagramUrl || 'https://www.instagram.com/paint.meraki');
-        setEmail(data.email || 'hello@paintmeraki.com');
+        setWhatsappNumber(data.whatsappNumber || '917284075825');
+        setInstagramUrl(data.instagramUrl || 'https://www.instagram.com/paint_n_meraki/');
+        setEmail(data.email || 'paintnmeraki@gmail.com');
         setBusinessAddress(data.businessAddress || 'Gujarat, India');
-        setAnnouncementText(data.announcementText || '♡ Handmade with Love | ✦ Custom Orders Available | Free Shipping Above ₹2,000 ♡');
+
+        let initialAnnouncement = data.announcementText || '♡ Handmade with Love | ✦ Custom Orders Available | Free Shipping Above ₹2,000 ♡';
+        if (typeof data.freeShippingThreshold === 'number') {
+          initialAnnouncement = initialAnnouncement.replace(
+            /Free Shipping (?:Above|on orders above)\s*₹[0-9,]+/i,
+            `Free Shipping Above ₹${data.freeShippingThreshold.toLocaleString('en-IN')}`
+          );
+        }
+        setAnnouncementText(initialAnnouncement);
         setAnnouncementEnabled(data.announcementEnabled ?? true);
       })
       .catch(() => toast.error('Failed to load settings'))
