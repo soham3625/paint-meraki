@@ -62,8 +62,8 @@ export default function Footer() {
     async function loadFooterData() {
       try {
         const [cRes, sRes] = await Promise.all([
-          fetch('/api/admin/categories'),
-          fetch('/api/admin/settings'),
+          fetch('/api/categories'),
+          fetch('/api/settings'),
         ]);
         if (cRes.ok) {
           const cats = await cRes.json();

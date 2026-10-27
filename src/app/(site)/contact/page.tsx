@@ -42,7 +42,7 @@ export default function ContactPage() {
   useEffect(() => {
     async function loadSettings() {
       try {
-        const res = await fetch('/api/admin/settings');
+        const res = await fetch('/api/settings');
         if (res.ok) {
           const data = await res.json();
           if (data) setSettings(data);

@@ -13,7 +13,7 @@ export default function WhatsAppFloat() {
   const [whatsappNumber, setWhatsappNumber] = useState('919878541310');
 
   useEffect(() => {
-    fetch('/api/admin/settings')
+    fetch('/api/settings')
       .then((res) => res.json())
       .then((data) => {
         if (data.whatsappNumber) setWhatsappNumber(data.whatsappNumber);

@@ -154,24 +154,29 @@ export default function CheckoutPage() {
         updatedAt: new Date().toISOString(),
       };
 
-      addOrder(order);
+      // 1. Post order to backend API for authoritative database persistence
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(order),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success || !data.order) {
+        throw new Error(data.error || 'Failed to process and record order. Please try again.');
+      }
+
+      // 2. Persist confirmed server order to client state & clear cart
+      const confirmedOrder = data.order;
+      addOrder(confirmedOrder);
       clearCart();
 
-      // Post order to backend API for admin synchronization
-      try {
-        await fetch('/api/orders', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(order),
-        });
-      } catch (err) {}
-
       // Short delay for UX transition
-      await new Promise((resolve) => setTimeout(resolve, 600));
+      await new Promise((resolve) => setTimeout(resolve, 300));
 
-      router.push(`/order-success?order=${orderNumber}`);
-    } catch {
-      toast.error('Something went wrong. Please try again.');
+      router.push(`/order-success?order=${encodeURIComponent(confirmedOrder.orderNumber)}`);
+    } catch (err: any) {
+      toast.error(err.message || 'Something went wrong. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

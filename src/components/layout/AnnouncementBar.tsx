@@ -14,7 +14,7 @@ export default function AnnouncementBar() {
   );
 
   useEffect(() => {
-    fetch('/api/admin/settings')
+    fetch('/api/settings')
       .then((res) => res.json())
       .then((data) => {
         if (data.announcementText) setAnnouncementText(data.announcementText);

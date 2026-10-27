@@ -557,11 +557,6 @@ async function autoSeedDatabase() {
             poojaThalisImage: defaultHomepageConfig.poojaThalisImage,
           },
         });
-      } else if (homeConfig.heroImage === '/images/categories/clock-2.jpg') {
-        await prisma.homepageConfig.update({
-          where: { id: 'default' },
-          data: { heroImage: '/circle.png' },
-        });
       }
 
       // 4. Seed BusinessSettings if empty
@@ -1067,18 +1062,12 @@ export async function getAllOrders(): Promise<Order[]> {
       });
       if (dbOrders) {
         const mapped = dbOrders.map(mapPrismaOrderToAppOrder);
-        // Retain any active runtime orders not yet represented in db
-        const seenNumbers = new Set(mapped.map((o: Order) => o.orderNumber));
-        for (const memOrder of (globalRuntime._orders || [])) {
-          if (!seenNumbers.has(memOrder.orderNumber) && memOrder.orderNumber !== 'PM1001' && memOrder.orderNumber !== 'PM1002') {
-            mapped.push(memOrder);
-          }
-        }
         globalRuntime._orders = mapped;
         return mapped;
       }
     } catch (err: any) {
-      console.warn('[getAllOrders] Prisma query notice:', err.message);
+      console.error('[getAllOrders] PostgreSQL query failed:', err.message);
+      throw new Error(`Failed to fetch orders from database: ${err.message}`);
     }
   }
 
@@ -1200,26 +1189,49 @@ export async function updateOrderStatus(
 
 export async function createOrder(order: Order): Promise<Order> {
   const normalized = normalizeOrder(order);
-  if (!globalRuntime._orders || globalRuntime._orders.length === 0) {
-    globalRuntime._orders = [...defaultOrders];
-  }
-  const list = globalRuntime._orders;
-  const clean = normalized.orderNumber.toUpperCase().replace('#', '').trim();
-  const existingIdx = list.findIndex(
-    (o) =>
-      o.orderNumber.toUpperCase().replace('#', '').trim() === clean ||
-      o.id === normalized.id ||
-      o.orderNumber === normalized.orderNumber
-  );
-
-  if (existingIdx > -1) {
-    list[existingIdx] = normalized;
-  } else {
-    globalRuntime._orders = [normalized, ...list];
-  }
 
   if (isDbConfigured()) {
     try {
+      // 1. Idempotency guard: Return existing order if already created in database
+      const existingDb = await prisma.order.findFirst({
+        where: {
+          OR: [
+            { id: normalized.id },
+            { orderNumber: normalized.orderNumber },
+          ],
+        },
+        include: {
+          items: {
+            include: {
+              product: true,
+            },
+          },
+        },
+      });
+
+      if (existingDb) {
+        const mapped = mapPrismaOrderToAppOrder(existingDb);
+        const list = globalRuntime._orders || [];
+        globalRuntime._orders = [mapped, ...list.filter((o) => o.id !== mapped.id && o.orderNumber !== mapped.orderNumber)];
+        return mapped;
+      }
+
+      // 2. Validate userId foreign key: ensure user exists in DB before linking
+      let validUserId: string | undefined = undefined;
+      if (normalized.userId) {
+        try {
+          const userExists = await prisma.user.findUnique({
+            where: { id: normalized.userId },
+          });
+          if (userExists) {
+            validUserId = userExists.id;
+          }
+        } catch {
+          validUserId = undefined;
+        }
+      }
+
+      // 3. Ensure referenced categories and products exist to prevent foreign key errors
       const itemData = [];
       for (const item of normalized.items) {
         let prodId = item.product.id;
@@ -1230,19 +1242,32 @@ export async function createOrder(order: Order): Promise<Order> {
             if (bySlug) {
               prodId = bySlug.id;
             } else {
+              // Ensure category exists before creating product
+              const categorySlug = item.product.categorySlug || 'resin-art';
+              await prisma.category.upsert({
+                where: { slug: categorySlug },
+                create: {
+                  name: item.product.category || 'Resin Art',
+                  slug: categorySlug,
+                  description: 'Handcrafted resin creations',
+                  image: item.product.thumbnail || '/images/categories/clock-2.jpg',
+                },
+                update: {},
+              });
+
               const createdP = await prisma.product.upsert({
                 where: { slug: item.product.slug },
                 create: {
                   name: item.product.name,
                   slug: item.product.slug,
-                  categoryName: item.product.category,
-                  categorySlug: item.product.categorySlug,
+                  categoryName: item.product.category || 'Resin Art',
+                  categorySlug,
                   description: item.product.description || '',
                   shortDescription: item.product.shortDescription || '',
                   price: item.product.price,
                   images: item.product.images || [],
                   thumbnail: item.product.thumbnail || '',
-                  sizes: item.product.sizes || [],
+                  sizes: (item.product.sizes || []) as any,
                   colors: item.product.colors || [],
                   material: item.product.material || 'Epoxy Resin',
                   careInstructions: item.product.careInstructions || '',
@@ -1254,24 +1279,28 @@ export async function createOrder(order: Order): Promise<Order> {
               prodId = createdP.id;
             }
           }
-        } catch (pErr) {
-          console.warn('[createOrder] Product resolution check:', pErr);
+        } catch (pErr: any) {
+          console.warn('[createOrder] Product foreign key resolution:', pErr?.message);
         }
 
         itemData.push({
-          productId: prodId,
+          product: { connect: { id: prodId } },
           quantity: item.quantity,
           price: item.price,
-          selectedSize: typeof item.selectedSize === 'object' && item.selectedSize ? (item.selectedSize as any).label : String(item.selectedSize || 'Standard'),
-          customization: item.customization || undefined,
+          selectedSize:
+            typeof item.selectedSize === 'object' && item.selectedSize
+              ? (item.selectedSize as any).label
+              : String(item.selectedSize || 'Standard'),
+          customization: (item.customization || undefined) as any,
         });
       }
 
+      // 4. Durably persist order and order items in PostgreSQL
       const savedDbOrder = await prisma.order.create({
         data: {
           id: normalized.id,
           orderNumber: normalized.orderNumber,
-          userId: normalized.userId || undefined,
+          userId: validUserId,
           customerName: normalized.customer.fullName,
           customerMobile: normalized.customer.mobile,
           customerEmail: normalized.customer.email || '',
@@ -1306,13 +1335,19 @@ export async function createOrder(order: Order): Promise<Order> {
         },
       });
 
-      return mapPrismaOrderToAppOrder(savedDbOrder);
+      const mapped = mapPrismaOrderToAppOrder(savedDbOrder);
+      const list = globalRuntime._orders || [];
+      globalRuntime._orders = [mapped, ...list.filter((o) => o.id !== mapped.id && o.orderNumber !== mapped.orderNumber)];
+      return mapped;
     } catch (err: any) {
-      console.error('[createOrder] Failed to persist order in PostgreSQL:', err.message);
-      throw new Error(`Failed to persist order to database: ${err.message}`);
+      console.error('[createOrder] Failed to persist order in PostgreSQL:', err?.message || err);
+      throw new Error(`Failed to persist order to database: ${err?.message || 'Database error'}`);
     }
   }
 
+  // Fallback only if database is explicitly not configured
+  const list = globalRuntime._orders || [...defaultOrders];
+  globalRuntime._orders = [normalized, ...list.filter((o) => o.id !== normalized.id && o.orderNumber !== normalized.orderNumber)];
   return normalized;
 }
 
@@ -1446,7 +1481,6 @@ export async function updateBusinessSettings(data: Partial<BusinessSettings>): P
     ...data,
     updatedAt: new Date().toISOString(),
   };
-  globalRuntime._settings = updated;
 
   if (isDbConfigured()) {
     try {
@@ -1458,23 +1492,15 @@ export async function updateBusinessSettings(data: Partial<BusinessSettings>): P
           ...updated,
         },
       });
+      globalRuntime._settings = updated;
+      return updated;
     } catch (err: any) {
-      console.warn('[updateBusinessSettings] Database save notice (persisted to runtime store):', err?.message);
-      try {
-        const { favicon: _f1, ...safeData } = data as any;
-        const { favicon: _f2, ...safeUpdated } = updated as any;
-        await prisma.businessSettings.upsert({
-          where: { id: 'default' },
-          update: safeData,
-          create: {
-            id: 'default',
-            ...safeUpdated,
-          },
-        });
-      } catch (inner) {}
+      console.error('[updateBusinessSettings] Failed to save settings to PostgreSQL:', err?.message || err);
+      throw new Error(`Failed to save settings to database: ${err?.message || 'Database write error'}`);
     }
   }
 
+  globalRuntime._settings = updated;
   return updated;
 }
 
@@ -1763,7 +1789,7 @@ export async function getHomepageConfig(): Promise<HomepageConfig> {
           heroDescription: dbConfig.heroDescription,
           heroButtonText: dbConfig.heroButtonText,
           heroButtonLink: dbConfig.heroButtonLink,
-          heroImage: dbConfig.heroImage === '/images/categories/clock-2.jpg' ? '/circle.png' : (dbConfig.heroImage || '/circle.png'),
+          heroImage: dbConfig.heroImage || '/circle.png',
           heroEnabled: dbConfig.heroEnabled,
           featuredCategories: Array.isArray(dbConfig.featuredCategories) ? dbConfig.featuredCategories : [],
           featuredProducts: Array.isArray(dbConfig.featuredProducts) ? dbConfig.featuredProducts : [],
@@ -1790,7 +1816,6 @@ export async function updateHomepageConfig(data: Partial<HomepageConfig>): Promi
     ...data,
     updatedAt: new Date().toISOString(),
   };
-  globalRuntime._homepageConfig = updated;
 
   if (isDbConfigured()) {
     try {
@@ -1822,11 +1847,15 @@ export async function updateHomepageConfig(data: Partial<HomepageConfig>): Promi
           ...dbPayload,
         },
       });
+      globalRuntime._homepageConfig = updated;
+      return updated;
     } catch (err: any) {
-      console.warn('[updateHomepageConfig] Database save warning (persisted to runtime store):', err?.message);
+      console.error('[updateHomepageConfig] Failed to save homepage config to PostgreSQL:', err?.message || err);
+      throw new Error(`Failed to save homepage config to database: ${err?.message || 'Database write error'}`);
     }
   }
 
+  globalRuntime._homepageConfig = updated;
   return updated;
 }
 
@@ -2065,7 +2094,7 @@ export async function createCustomerWithEmail(data: {
           id: newCustomer.id,
           fullName: newCustomer.fullName,
           email: newCustomer.email,
-          mobile: newCustomer.mobile || '',
+          mobile: newCustomer.mobile || null,
           passwordHash: newCustomer.passwordHash,
           role: 'CUSTOMER',
           status: 'ACTIVE',

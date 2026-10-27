@@ -34,21 +34,21 @@ export default function Header() {
 
   useEffect(() => {
     setMounted(true);
-    fetch('/api/admin/categories')
+    fetch('/api/categories')
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
           setCategoriesList(data);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     fetch('/api/settings')
       .then((r) => r.json())
       .then((data) => {
         if (data?.logo) setLogoUrl(data.logo);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const navLinks = [

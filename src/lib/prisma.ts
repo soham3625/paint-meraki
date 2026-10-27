@@ -1,27 +1,78 @@
-let prismaInstance: any = null;
+// ============================================
+// paint_n_meraki — PRISMA CLIENT INITIALIZATION
+// Configured with PrismaPg Driver Adapter for Prisma ORM 7 & PostgreSQL
+// ============================================
 
-try {
-  // Dynamically require to avoid crash if .prisma/client is not yet generated
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { PrismaClient } = require('@prisma/client');
-  const globalForPrisma = globalThis as unknown as {
-    prisma: any;
-  };
+import { Pool } from 'pg';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaClient } from '@prisma/client';
 
-  prismaInstance =
-    globalForPrisma.prisma ??
-    new PrismaClient({
+const globalForPrisma = globalThis as unknown as {
+  prisma?: PrismaClient;
+  pgPool?: Pool;
+};
+
+/**
+ * Returns a singleton PrismaClient configured with the PrismaPg driver adapter.
+ * Uses connection pooling suitable for serverless / edge environments.
+ */
+export function getPrismaClient(): PrismaClient | null {
+  const connectionString = process.env.DATABASE_URL?.trim();
+  if (!connectionString) {
+    return null;
+  }
+
+  if (globalForPrisma.prisma) {
+    return globalForPrisma.prisma;
+  }
+
+  try {
+    const pool =
+      globalForPrisma.pgPool ??
+      new Pool({
+        connectionString,
+        max: process.env.NODE_ENV === 'production' ? 10 : 5,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 10000,
+      });
+
+    globalForPrisma.pgPool = pool;
+
+    const adapter = new PrismaPg(pool);
+    const client = new PrismaClient({
+      adapter,
       log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
     });
 
-  globalForPrisma.prisma = prismaInstance;
-} catch (e) {
-  // Graceful fallback when Prisma Client is not generated or DB is offline
-  prismaInstance = new Proxy({}, {
-    get: () => {
-      return () => Promise.resolve(null);
-    }
-  });
+    globalForPrisma.prisma = client;
+    return client;
+  } catch (err: any) {
+    console.error('[Prisma] Failed to initialize PrismaClient with PrismaPg adapter:', err?.message || err);
+    throw err;
+  }
 }
 
-export const prisma = prismaInstance;
+/**
+ * Checks whether DATABASE_URL is non-empty.
+ */
+export function isDatabaseConfigured(): boolean {
+  return Boolean(process.env.DATABASE_URL && process.env.DATABASE_URL.trim() !== '');
+}
+
+/**
+ * Authoritative Prisma client export.
+ * Proxies calls to the adapter-configured PrismaClient.
+ */
+export const prisma = new Proxy({} as PrismaClient, {
+  get(target, prop) {
+    const client = getPrismaClient();
+    if (!client) {
+      throw new Error(
+        `[Prisma] DATABASE_URL is not configured in environment variables. Database operations cannot be executed.`
+      );
+    }
+    const value = (client as any)[prop];
+    return typeof value === 'function' ? value.bind(client) : value;
+  },
+});
+
