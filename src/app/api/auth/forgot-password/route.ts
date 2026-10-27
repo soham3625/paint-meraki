@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
       await savePasswordResetToken(cleanEmail, tokenHash, expiresAt, user.id);
 
       // 4. Construct Public Reset Link
-      const hostOrigin = req.headers.get('origin') || req.nextUrl.origin || 'https://paint-meraki.vercel.app';
+      const hostOrigin = req.headers.get('origin') || req.nextUrl.origin || 'https://paintnmeraki.vercel.app';
       const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || hostOrigin;
       const resetUrl = `${baseUrl.replace(/\/$/, '')}/account/reset-password?token=${resetToken}&email=${encodeURIComponent(cleanEmail)}`;
 

@@ -263,7 +263,7 @@ export async function getCustomerInvoiceData(
       email: settings.email || 'hello@paintmeraki.com',
       whatsapp: settings.whatsappNumber ? `+${settings.whatsappNumber.replace(/\D/g, '')}` : '+91 98785 41310',
       address: settings.businessAddress || 'Gujarat, India',
-      website: process.env.NEXT_PUBLIC_SITE_URL?.replace(/^https?:\/\//, '') || 'paint-meraki.vercel.app',
+      website: process.env.NEXT_PUBLIC_SITE_URL?.replace(/^https?:\/\//, '') || 'paintnmeraki.vercel.app',
       instagram: '@paint.meraki',
     },
 
