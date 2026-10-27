@@ -27,10 +27,15 @@ export function getPrismaClient(): PrismaClient | null {
   }
 
   try {
+    const isLocal =
+      connectionString.includes('localhost') ||
+      connectionString.includes('127.0.0.1');
+
     const pool =
       globalForPrisma.pgPool ??
       new Pool({
         connectionString,
+        ssl: isLocal ? false : { rejectUnauthorized: false },
         max: process.env.NODE_ENV === 'production' ? 10 : 5,
         idleTimeoutMillis: 30000,
         connectionTimeoutMillis: 10000,

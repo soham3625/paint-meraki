@@ -166,11 +166,14 @@ export default function AdminSettingsPage() {
       const data = await res.json();
       if (res.ok && data.success) {
         toast.success('Store settings & title logo saved live!');
+        if (data.warning) {
+          toast(data.warning, { icon: '⚠️' });
+        }
       } else {
-        toast.error('Failed to save settings');
+        toast.error(data?.error || 'Failed to save settings');
       }
-    } catch (err) {
-      toast.error('Error saving settings');
+    } catch (err: any) {
+      toast.error('Error saving settings: ' + (err?.message || 'Network error'));
     } finally {
       setSaving(false);
     }

@@ -27,14 +27,18 @@ export async function PUT(req: Request) {
 
     const updated = await updateBusinessSettings(data);
 
-    await logActivity(
-      session.email,
-      session.name,
-      'SETTINGS_UPDATED',
-      'Settings',
-      'Updated store, UPI, and shipping settings',
-      'default'
-    );
+    try {
+      await logActivity(
+        session.email,
+        session.name,
+        'SETTINGS_UPDATED',
+        'Settings',
+        'Updated store, UPI, and shipping settings',
+        'default'
+      );
+    } catch (logErr: any) {
+      console.warn('[PUT /api/admin/settings] Activity log notice:', logErr?.message || logErr);
+    }
 
     revalidatePath('/');
     revalidatePath('/cart');

@@ -99,11 +99,14 @@ export default function AdminPaymentsShippingPage() {
       const data = await res.json();
       if (res.ok && data.success) {
         toast.success('Payment & Shipping settings updated!');
+        if (data.warning) {
+          toast(data.warning, { icon: '⚠️' });
+        }
       } else {
-        toast.error('Failed to save settings');
+        toast.error(data?.error || 'Failed to save settings');
       }
-    } catch (e) {
-      toast.error('Error saving settings');
+    } catch (e: any) {
+      toast.error('Error saving settings: ' + (e?.message || 'Network error'));
     } finally {
       setSaving(false);
     }
