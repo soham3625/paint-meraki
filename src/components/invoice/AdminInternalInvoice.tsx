@@ -31,6 +31,14 @@ export default function AdminInternalInvoice({
     timeStyle: 'short',
   });
 
+  const brandName =
+    invoice.store?.businessName &&
+    ['paint_n_meraki', 'paint meraki', 'paintnmeraki', 'paintmeraki'].includes(
+      invoice.store.businessName.toLowerCase().replace(/[\s_]+/g, '')
+    )
+      ? 'Paint_n_Meraki'
+      : invoice.store?.businessName || 'Paint_n_Meraki';
+
   return (
     <div className="min-h-screen bg-[#F8F5EE] py-6 sm:py-10 print:py-0 print:bg-white text-[#181616]">
       {/* On-Screen Action Bar */}
@@ -78,14 +86,21 @@ export default function AdminInternalInvoice({
                 {(invoice.store?.logo || '/logo.jpg') && (
                   <img
                     src={invoice.store?.logo || '/logo.jpg'}
-                    alt={invoice.store?.businessName || 'Paint_n_Meraki'}
+                    alt={brandName}
                     className="w-12 h-12 rounded-xl object-contain border border-[#EAE3D6] bg-white p-0.5 shrink-0 shadow-xs"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      if (!target.dataset.fallback) {
+                        target.dataset.fallback = 'true';
+                        target.src = '/logo.jpg';
+                      }
+                    }}
                   />
                 )}
                 <div>
                   <div className="flex items-center gap-2">
                     <h1 className="font-heading text-2xl font-bold tracking-tight text-charcoal">
-                      {invoice.store?.businessName || 'Paint_n_Meraki'}
+                      {brandName}
                     </h1>
                     <span className="bg-stone-900 text-gold-light text-[10px] uppercase font-mono px-2 py-0.5 rounded font-bold">
                       INTERNAL OPS

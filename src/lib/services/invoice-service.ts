@@ -258,7 +258,13 @@ export async function getCustomerInvoiceData(
         : 'Pending Verification',
 
     store: {
-      name: settings.businessName || 'Paint_n_Meraki',
+      name:
+        settings.businessName &&
+        ['paint_n_meraki', 'paint meraki', 'paintnmeraki', 'paintmeraki'].includes(
+          settings.businessName.toLowerCase().replace(/[\s_]+/g, '')
+        )
+          ? 'Paint_n_Meraki'
+          : settings.businessName || 'Paint_n_Meraki',
       tagline: 'Handcrafted Resin Art • Made with Love',
       logo: settings.logo || '/logo.jpg',
       email: settings.email || 'paintnmeraki@gmail.com',
