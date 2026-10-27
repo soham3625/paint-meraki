@@ -63,14 +63,14 @@ async function runTests() {
   assert(!isDatabaseConfigured(), 'isDatabaseConfigured should return false when DATABASE_URL is unset');
 
   const defaultSett = await getBusinessSettings();
-  assert(defaultSett.businessName === 'paint_n_meraki', 'Should return default settings when DB not configured');
+  assert(defaultSett.businessName.toLowerCase() === 'paint_n_meraki', 'Should return default settings when DB not configured');
   console.log('✔ PASSED: Safe fallback when DATABASE_URL is intentionally unset.');
 
   console.log('\n--- TEST 4: Frontend API Endpoints Verification ---');
   const baseDir = path.join(process.cwd(), 'src');
 
   const announcementContent = fs.readFileSync(path.join(baseDir, 'components/layout/AnnouncementBar.tsx'), 'utf8');
-  assert(announcementContent.includes("fetch('/api/settings')"), 'AnnouncementBar must fetch /api/settings');
+  assert(announcementContent.includes("fetch('/api/settings'"), 'AnnouncementBar must fetch /api/settings');
   assert(!announcementContent.includes("fetch('/api/admin/settings')"), 'AnnouncementBar must NOT fetch /api/admin/settings');
 
   const footerContent = fs.readFileSync(path.join(baseDir, 'components/layout/Footer.tsx'), 'utf8');

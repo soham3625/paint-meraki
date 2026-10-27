@@ -216,6 +216,21 @@ model PasswordResetToken {
   @@index([tokenHash])
 }
 
+model EmailOtp {
+  id                  String    @id @default(cuid())
+  email               String
+  otpHash             String
+  action              String    @default("LOGIN")
+  attempts            Int       @default(0)
+  maxAttempts         Int       @default(5)
+  expiresAt           DateTime
+  resendCooldownUntil DateTime
+  usedAt              DateTime?
+  createdAt           DateTime  @default(now())
+
+  @@index([email])
+}
+
 model BusinessSettings {
   id                    String   @id @default("default")
   businessName          String   @default("paint_n_meraki")

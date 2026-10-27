@@ -2,22 +2,15 @@
 
 // ============================================
 // paint_n_meraki — LOGIN / AUTHENTICATION PAGE
-// Firebase Phone Auth + Email Login & Registration
+// Free Email OTP Verification + Password Login & Registration
+// Powered by Existing Resend Integration (Zero Paid SMS Quotas)
 // ============================================
 
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/store/auth-store';
-import { getFirebaseAuth } from '@/lib/firebase';
-import { RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } from 'firebase/auth';
 import {
-  Phone,
-  ArrowRight,
-  Sparkles,
-  RefreshCw,
-  Edit2,
-  ShieldCheck,
   Mail,
   Lock,
   Eye,
@@ -25,6 +18,12 @@ import {
   UserPlus,
   User,
   Heart,
+  Sparkles,
+  ArrowRight,
+  RefreshCw,
+  Edit2,
+  ShieldCheck,
+  CheckCircle2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -33,7 +32,7 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get('redirect') || '/account';
 
-  const { isAuthenticated, syncWithBackendSession, login, signup } = useAuthStore();
+  const { isAuthenticated, login, signup, sendEmailOtp, verifyEmailOtp } = useAuthStore();
   const [mounted, setMounted] = useState(false);
   const isResetSuccess = searchParams.get('reset') === 'success';
 
@@ -44,18 +43,18 @@ function LoginForm() {
       ? 'register'
       : isResetSuccess
       ? 'email'
-      : 'mobile';
+      : 'otp';
 
-  const [authMethod, setAuthMethod] = useState<'mobile' | 'email' | 'register'>(initialTab);
+  const [authMethod, setAuthMethod] = useState<'otp' | 'email' | 'register'>(initialTab);
 
-  // Phone OTP Flow State
-  const [mobile, setMobile] = useState('');
+  // Email OTP Flow State
+  const [otpEmail, setOtpEmail] = useState('');
+  const [otpFullName, setOtpFullName] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [otpTimer, setOtpTimer] = useState(0);
-  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
 
-  // Email & Password Login State
+  // Password Login State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -93,19 +92,7 @@ function LoginForm() {
     }
   }, [otpTimer]);
 
-  // Clean up reCAPTCHA verifier on unmount
-  useEffect(() => {
-    return () => {
-      if (typeof window !== 'undefined' && (window as any).recaptchaVerifier) {
-        try {
-          (window as any).recaptchaVerifier.clear();
-        } catch (e) {}
-        (window as any).recaptchaVerifier = null;
-      }
-    };
-  }, []);
-
-  // Auto focus first OTP box on screen transition
+  // Auto-focus first OTP box on screen transition
   useEffect(() => {
     if (otpSent && otpInputsRef.current[0]) {
       setTimeout(() => {
@@ -114,117 +101,40 @@ function LoginForm() {
     }
   }, [otpSent]);
 
-  const getCleanPhoneNumber = (raw: string) => {
-    const trimmed = raw.trim();
-    if (trimmed.startsWith('+')) return trimmed;
-    const digits = trimmed.replace(/\D/g, '');
-    if (digits.length === 10) return `+91${digits}`;
-    return `+${digits}`;
-  };
-
-  const setupRecaptcha = () => {
-    const auth = getFirebaseAuth();
-    if (typeof window === 'undefined') return null;
-
-    if ((window as any).recaptchaVerifier) {
-      try {
-        (window as any).recaptchaVerifier.clear();
-      } catch (e) {}
-      (window as any).recaptchaVerifier = null;
-    }
-
-    const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-      size: 'invisible',
-      callback: () => {
-        // reCAPTCHA solved
-      },
-      'expired-callback': () => {
-        setErrorMessage('Security verification expired. Please try again.');
-      },
-    });
-
-    (window as any).recaptchaVerifier = verifier;
-    return verifier;
-  };
-
-  const mapFirebasePhoneError = (error: any): string => {
-    const code = error?.code || '';
-    if (code === 'auth/invalid-phone-number') {
-      return 'Please enter a valid 10-digit mobile number.';
-    }
-    if (code === 'auth/missing-phone-number') {
-      return 'Please enter your mobile number.';
-    }
-    if (code === 'auth/quota-exceeded') {
-      return 'SMS quota exceeded for today. Please try again later or contact support.';
-    }
-    if (code === 'auth/too-many-requests') {
-      return 'Too many attempts. Please wait a few moments and try again.';
-    }
-    if (code === 'auth/operation-not-allowed') {
-      return 'Phone authentication is temporarily unavailable. Please try again later.';
-    }
-    if (code === 'auth/captcha-check-failed') {
-      return 'Security verification failed. Please refresh the page and try again.';
-    }
-    if (code === 'auth/app-not-authorized') {
-      return 'Application verification failed. Please verify domain configuration.';
-    }
-    if (code === 'auth/invalid-verification-code') {
-      return 'The 6-digit OTP entered is incorrect. Please check and try again.';
-    }
-    if (code === 'auth/code-expired') {
-      return 'This OTP has expired. Please tap "Resend OTP" to receive a new code.';
-    }
-    if (code === 'auth/network-request-failed') {
-      return 'Network connection error. Please check your internet connection.';
-    }
-    if (code === 'auth/user-disabled') {
-      return 'This account has been disabled. Please contact Paint Meraki support.';
-    }
-    return error?.message || 'Verification failed. Please try again.';
-  };
-
+  // ============================================
+  // HANDLERS: EMAIL OTP
+  // ============================================
   const handleSendOtp = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setErrorMessage(null);
 
-    const rawDigits = mobile.replace(/\D/g, '');
-    const isStandardIndian = /^[6-9]\d{9}$/.test(rawDigits);
-    const isInternational = mobile.startsWith('+') && /^\+[1-9]\d{7,14}$/.test(mobile.trim());
-
-    if (!isStandardIndian && !isInternational) {
-      setErrorMessage('Please enter a valid 10-digit Indian mobile number (e.g. 9876543210).');
+    const clean = otpEmail.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!clean || !emailRegex.test(clean)) {
+      setErrorMessage('Please enter a valid email address.');
       return;
     }
 
-    const fullPhoneNumber = getCleanPhoneNumber(mobile);
     setIsSubmitting(true);
-
     try {
-      const auth = getFirebaseAuth();
-      let verifier = (window as any).recaptchaVerifier;
-      if (!verifier) {
-        verifier = setupRecaptcha();
+      const res = await sendEmailOtp(clean, 'LOGIN', otpFullName.trim() || undefined);
+      if (res.success) {
+        setOtpSent(true);
+        setOtp(['', '', '', '', '', '']);
+        setOtpTimer(res.cooldownSeconds || 60);
+        toast.success(res.message || 'Verification code sent to your email! ♡');
+      } else {
+        const msg = res.error || 'Failed to send verification code. Please try again.';
+        setErrorMessage(msg);
+        toast.error(msg);
+        if (res.cooldownSeconds && res.cooldownSeconds > 0) {
+          setOtpTimer(res.cooldownSeconds);
+        }
       }
-
-      const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, verifier);
-      setConfirmationResult(confirmation);
-      setOtpSent(true);
-      setOtpTimer(60);
-      toast.success('OTP sent successfully to ' + fullPhoneNumber);
     } catch (err: any) {
-      console.error('Firebase send OTP error:', err);
-      const friendlyMsg = mapFirebasePhoneError(err);
-      setErrorMessage(friendlyMsg);
-      toast.error(friendlyMsg);
-
-      if (typeof window !== 'undefined' && (window as any).recaptchaVerifier) {
-        try {
-          (window as any).recaptchaVerifier.clear();
-        } catch (e) {}
-        (window as any).recaptchaVerifier = null;
-      }
+      const msg = err.message || 'Network error while sending verification code.';
+      setErrorMessage(msg);
+      toast.error(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -268,41 +178,44 @@ function LoginForm() {
 
     const enteredOtp = otp.join('');
     if (enteredOtp.length !== 6) {
-      setErrorMessage('Please enter the complete 6-digit OTP.');
-      return;
-    }
-
-    if (!confirmationResult) {
-      setErrorMessage('Session expired. Please request a new OTP.');
+      setErrorMessage('Please enter the complete 6-digit verification code.');
       return;
     }
 
     setIsSubmitting(true);
-
     try {
-      const userCredential = await confirmationResult.confirm(enteredOtp);
-      const firebaseUser = userCredential.user;
-      const idToken = await firebaseUser.getIdToken();
+      const res = await verifyEmailOtp(
+        otpEmail.trim().toLowerCase(),
+        enteredOtp,
+        otpFullName.trim() || undefined
+      );
 
-      const syncResult = await syncWithBackendSession(idToken);
-      if (syncResult.success) {
+      if (res.success) {
         toast.success('Logged in successfully! Welcome to Paint Meraki ♡');
         router.push(redirectUrl);
       } else {
-        const errorMsg = syncResult.error || 'Failed to initialize customer account.';
+        const errorMsg = res.error || 'Verification failed. Please check the code.';
         setErrorMessage(errorMsg);
         toast.error(errorMsg);
       }
     } catch (err: any) {
-      console.error('Firebase verify OTP error:', err);
-      const friendlyMsg = mapFirebasePhoneError(err);
-      setErrorMessage(friendlyMsg);
-      toast.error(friendlyMsg);
+      const errorMsg = err.message || 'Verification failed. Please try again.';
+      setErrorMessage(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const handleChangeEmail = () => {
+    setOtpSent(false);
+    setOtp(['', '', '', '', '', '']);
+    setErrorMessage(null);
+  };
+
+  // ============================================
+  // HANDLERS: PASSWORD LOGIN
+  // ============================================
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
@@ -332,6 +245,9 @@ function LoginForm() {
     }
   };
 
+  // ============================================
+  // HANDLERS: CREATE ACCOUNT
+  // ============================================
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
@@ -380,43 +296,39 @@ function LoginForm() {
     }
   };
 
-  const handleChangeNumber = () => {
-    setOtpSent(false);
-    setOtp(['', '', '', '', '', '']);
-    setConfirmationResult(null);
-    setErrorMessage(null);
-  };
-
   if (!mounted || isAuthenticated) return null;
 
   return (
     <div className="min-h-[75vh] flex items-center justify-center py-12 px-4">
-      {/* Invisible container for Firebase reCAPTCHA */}
-      <div id="recaptcha-container"></div>
-
       <div className="w-full max-w-md">
         {/* Header Branding */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-gradient-to-br from-dusty-rose/20 to-blush/30 rounded-full flex items-center justify-center mx-auto mb-4 shadow-soft">
             {authMethod === 'register' ? (
               <Heart size={28} className="text-dusty-rose" />
-            ) : (
+            ) : authMethod === 'otp' ? (
               <Sparkles size={28} className="text-dusty-rose" />
+            ) : (
+              <Lock size={26} className="text-dusty-rose" />
             )}
           </div>
           <h1 className="font-heading text-3xl font-semibold text-charcoal">
             {otpSent
-              ? 'Verify Mobile'
+              ? 'Verify Email'
               : authMethod === 'register'
               ? 'Create Account'
-              : 'Login / Create Account'}
+              : authMethod === 'otp'
+              ? 'Instant Email Sign-In'
+              : 'Welcome Back'}
           </h1>
           <p className="text-taupe text-sm mt-2">
             {otpSent
-              ? `Enter the 6-digit OTP sent to +91 ${mobile.replace(/\D/g, '').slice(-10)}`
+              ? `Enter the 6-digit code sent to ${otpEmail}`
               : authMethod === 'register'
               ? 'Join Paint Meraki for a personalised shopping experience'
-              : 'Handcrafted Resin Art & Personalised Creations'}
+              : authMethod === 'otp'
+              ? 'Fast & secure verification code sent directly to your inbox'
+              : 'Sign in to access your orders, wishlists & addresses'}
           </p>
         </div>
 
@@ -428,16 +340,16 @@ function LoginForm() {
               <button
                 type="button"
                 onClick={() => {
-                  setAuthMethod('mobile');
+                  setAuthMethod('otp');
                   setErrorMessage(null);
                 }}
                 className={`flex-1 flex items-center justify-center gap-1.5 py-3.5 text-xs sm:text-sm font-semibold transition-all ${
-                  authMethod === 'mobile'
+                  authMethod === 'otp'
                     ? 'text-dusty-rose border-b-2 border-dusty-rose bg-white shadow-xs'
                     : 'text-taupe hover:text-charcoal'
                 }`}
               >
-                <Phone size={14} /> Mobile & OTP
+                <Sparkles size={14} /> Email OTP
               </button>
               <button
                 type="button"
@@ -451,7 +363,7 @@ function LoginForm() {
                     : 'text-taupe hover:text-charcoal'
                 }`}
               >
-                <Mail size={14} /> Email Login
+                <Lock size={14} /> Password
               </button>
               <button
                 type="button"
@@ -465,7 +377,7 @@ function LoginForm() {
                     : 'text-taupe hover:text-charcoal'
                 }`}
               >
-                <UserPlus size={14} /> Create Account
+                <UserPlus size={14} /> Register
               </button>
             </div>
           )}
@@ -474,7 +386,7 @@ function LoginForm() {
             {/* Reset Password Success Banner */}
             {isResetSuccess && (
               <div className="mb-5 p-3.5 rounded-xl bg-green-50 border border-green-200 text-xs text-green-700 flex items-start gap-2 animate-fade-in">
-                <span className="font-bold">✓</span>
+                <CheckCircle2 size={16} className="text-green-600 mt-0.5 shrink-0" />
                 <span>Your password has been reset successfully. Please log in with your new password.</span>
               </div>
             )}
@@ -482,67 +394,85 @@ function LoginForm() {
             {/* Error Message Banner */}
             {errorMessage && (
               <div className="mb-5 p-3.5 rounded-xl bg-red-50/80 border border-red-200/60 text-xs text-red-600 flex items-start gap-2 animate-fade-in">
-                <span className="font-bold">⚠️</span>
-                <span>{errorMessage}</span>
+                <span className="font-bold text-sm leading-none mt-0.5">⚠️</span>
+                <span className="leading-relaxed">{errorMessage}</span>
               </div>
             )}
 
-            {/* TAB 1: MOBILE NUMBER OTP */}
-            {authMethod === 'mobile' && !otpSent && (
-              <form onSubmit={handleSendOtp} className="space-y-5">
+            {/* TAB 1: FREE EMAIL OTP FLOW */}
+            {authMethod === 'otp' && !otpSent && (
+              <form onSubmit={handleSendOtp} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-charcoal uppercase tracking-wider mb-2">
-                    Mobile Number
+                  <label className="block text-xs font-semibold text-charcoal uppercase tracking-wider mb-1.5">
+                    Email Address
                   </label>
-                  <div className="relative flex rounded-xl border border-beige/60 focus-within:border-dusty-rose focus-within:ring-2 focus-within:ring-dusty-rose/20 bg-cream/20 transition-all overflow-hidden">
-                    <div className="flex items-center px-3.5 bg-beige/20 border-r border-beige/40 text-xs font-medium text-charcoal select-none">
-                      <span className="text-sm mr-1">🇮🇳</span> +91
-                    </div>
+                  <div className="relative">
+                    <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-taupe pointer-events-none" />
                     <input
-                      type="tel"
-                      value={mobile}
-                      onChange={(e) => setMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                      placeholder="Enter 10-digit mobile number"
-                      className="w-full px-3.5 py-3 text-sm bg-transparent outline-none text-charcoal font-medium placeholder:text-taupe/60"
-                      maxLength={10}
+                      type="email"
+                      value={otpEmail}
+                      onChange={(e) => setOtpEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      className="input-field !pl-10 text-sm"
                       autoFocus
                       required
                     />
                   </div>
                   <p className="text-[11px] text-taupe mt-1.5 flex items-center gap-1">
-                    <ShieldCheck size={12} className="text-dusty-rose" /> We will send an SMS OTP for secure verification.
+                    <ShieldCheck size={12} className="text-dusty-rose" /> We will email a secure 6-digit code. No password needed!
                   </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-charcoal uppercase tracking-wider mb-1.5">
+                    Your Name <span className="text-taupe/60 lowercase font-normal">(optional for new customers)</span>
+                  </label>
+                  <div className="relative">
+                    <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-taupe pointer-events-none" />
+                    <input
+                      type="text"
+                      value={otpFullName}
+                      onChange={(e) => setOtpFullName(e.target.value)}
+                      placeholder="e.g. Astha Patel"
+                      className="input-field !pl-10 text-sm"
+                    />
+                  </div>
                 </div>
 
                 <button
                   type="submit"
-                  disabled={isSubmitting || mobile.replace(/\D/g, '').length < 10}
-                  className="btn-primary w-full justify-center py-3 text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isSubmitting || !otpEmail.trim() || otpTimer > 0}
+                  className="btn-primary w-full justify-center py-3 text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
                 >
                   {isSubmitting ? (
                     <>
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Sending OTP...
+                      Sending Code...
+                    </>
+                  ) : otpTimer > 0 ? (
+                    <>
+                      <RefreshCw size={14} className="animate-spin text-white/70" />
+                      Wait {otpTimer}s to resend
                     </>
                   ) : (
                     <>
-                      Send OTP <ArrowRight size={16} />
+                      Send Verification Code <ArrowRight size={16} />
                     </>
                   )}
                 </button>
 
                 <div className="mt-4 pt-3 border-t border-beige/30 text-center">
                   <p className="text-xs text-taupe">
-                    Prefer Email & Password?{' '}
+                    Prefer password login?{' '}
                     <button
                       type="button"
                       onClick={() => {
-                        setAuthMethod('register');
+                        setAuthMethod('email');
                         setErrorMessage(null);
                       }}
                       className="text-dusty-rose font-semibold hover:underline"
                     >
-                      Create Account
+                      Use Password
                     </button>
                   </p>
                 </div>
@@ -550,19 +480,19 @@ function LoginForm() {
             )}
 
             {/* OTP VERIFICATION VIEW */}
-            {otpSent && (
+            {authMethod === 'otp' && otpSent && (
               <form onSubmit={handleVerifyOtp} className="space-y-6">
                 <div className="flex items-center justify-between p-3 rounded-xl bg-cream/40 border border-beige/40">
-                  <div className="flex items-center gap-2">
-                    <Phone size={14} className="text-dusty-rose" />
-                    <span className="text-xs font-semibold text-charcoal">
-                      +91 {mobile.replace(/\D/g, '').slice(-10)}
+                  <div className="flex items-center gap-2 overflow-hidden">
+                    <Mail size={14} className="text-dusty-rose shrink-0" />
+                    <span className="text-xs font-semibold text-charcoal truncate">
+                      {otpEmail}
                     </span>
                   </div>
                   <button
                     type="button"
-                    onClick={handleChangeNumber}
-                    className="text-xs text-dusty-rose hover:underline font-medium flex items-center gap-1"
+                    onClick={handleChangeEmail}
+                    className="text-xs text-dusty-rose hover:underline font-medium flex items-center gap-1 shrink-0 ml-2"
                   >
                     <Edit2 size={11} /> Change
                   </button>
@@ -570,7 +500,7 @@ function LoginForm() {
 
                 <div>
                   <label className="block text-xs font-semibold text-charcoal uppercase tracking-wider mb-3 text-center">
-                    Enter 6-Digit OTP Code
+                    Enter 6-Digit Verification Code
                   </label>
                   <div className="flex justify-between gap-2 sm:gap-3">
                     {otp.map((digit, idx) => (
@@ -591,6 +521,9 @@ function LoginForm() {
                       />
                     ))}
                   </div>
+                  <p className="text-[11px] text-taupe text-center mt-2">
+                    Code expires in 10 minutes. Check your inbox or spam folder.
+                  </p>
                 </div>
 
                 <button
@@ -605,7 +538,7 @@ function LoginForm() {
                     </>
                   ) : (
                     <>
-                      Verify & Continue <ArrowRight size={16} />
+                      Verify & Sign In <ArrowRight size={16} />
                     </>
                   )}
                 </button>
@@ -613,7 +546,7 @@ function LoginForm() {
                 <div className="text-center pt-1">
                   {otpTimer > 0 ? (
                     <p className="text-xs text-taupe flex items-center justify-center gap-1.5">
-                      <RefreshCw size={12} className="animate-spin text-taupe/60" /> Resend OTP in {otpTimer}s
+                      <RefreshCw size={12} className="animate-spin text-taupe/60" /> Resend code in {otpTimer}s
                     </p>
                   ) : (
                     <button
@@ -622,14 +555,14 @@ function LoginForm() {
                       disabled={isSubmitting}
                       className="text-xs text-dusty-rose hover:underline font-semibold"
                     >
-                      Didn&apos;t receive code? Resend OTP
+                      Didn&apos;t receive code? Resend Code
                     </button>
                   )}
                 </div>
               </form>
             )}
 
-            {/* TAB 2: EMAIL LOGIN */}
+            {/* TAB 2: EMAIL & PASSWORD LOGIN */}
             {authMethod === 'email' && (
               <form onSubmit={handleEmailLogin} className="space-y-4">
                 <div>
@@ -692,26 +625,25 @@ function LoginForm() {
                   )}
                 </button>
 
-                {/* Create Account Link under Email Login */}
                 <div className="mt-4 pt-3 border-t border-beige/30 text-center">
                   <p className="text-xs text-taupe">
-                    Don&apos;t have an account?{' '}
+                    Prefer passwordless sign in?{' '}
                     <button
                       type="button"
                       onClick={() => {
-                        setAuthMethod('register');
+                        setAuthMethod('otp');
                         setErrorMessage(null);
                       }}
                       className="text-dusty-rose font-semibold hover:underline"
                     >
-                      Create Account
+                      Instant Email OTP
                     </button>
                   </p>
                 </div>
               </form>
             )}
 
-            {/* TAB 3: CREATE ACCOUNT (INLINE REGISTRATION) */}
+            {/* TAB 3: CREATE ACCOUNT */}
             {authMethod === 'register' && (
               <form onSubmit={handleRegister} className="space-y-4">
                 <div>
@@ -828,19 +760,18 @@ function LoginForm() {
                   )}
                 </button>
 
-                {/* Switch to Login Link */}
                 <div className="mt-4 pt-3 border-t border-beige/30 text-center">
                   <p className="text-xs text-taupe">
                     Already have an account?{' '}
                     <button
                       type="button"
                       onClick={() => {
-                        setAuthMethod('email');
+                        setAuthMethod('otp');
                         setErrorMessage(null);
                       }}
                       className="text-dusty-rose font-semibold hover:underline"
                     >
-                      Sign In
+                      Sign In with OTP
                     </button>
                   </p>
                 </div>

@@ -3,6 +3,7 @@
 // Authoritative Data Access with Prisma + Active Runtime Resilience
 // ============================================
 
+import crypto from 'crypto';
 import { prisma } from '@/lib/prisma';
 import {
   Product,
@@ -297,6 +298,18 @@ const globalRuntime = globalThis as unknown as {
     expiresAt: number;
     userId?: string;
     usedAt?: number;
+  }>;
+  _emailOtps?: Array<{
+    id: string;
+    email: string;
+    otpHash: string;
+    action: string;
+    attempts: number;
+    maxAttempts: number;
+    expiresAt: number;
+    resendCooldownUntil: number;
+    usedAt?: number;
+    createdAt: number;
   }>;
 };
 
@@ -755,6 +768,35 @@ export async function ensureDatabaseTables(): Promise<void> {
           "entity" TEXT NOT NULL,
           "entityId" TEXT,
           "details" TEXT,
+          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      // 14. Ensure PasswordResetToken table
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "PasswordResetToken" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "email" TEXT NOT NULL,
+          "tokenHash" TEXT NOT NULL UNIQUE,
+          "expiresAt" TIMESTAMP(3) NOT NULL,
+          "userId" TEXT,
+          "usedAt" TIMESTAMP(3),
+          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      // 15. Ensure EmailOtp table
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "EmailOtp" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "email" TEXT NOT NULL,
+          "otpHash" TEXT NOT NULL,
+          "action" TEXT NOT NULL DEFAULT 'LOGIN',
+          "attempts" INTEGER NOT NULL DEFAULT 0,
+          "maxAttempts" INTEGER NOT NULL DEFAULT 5,
+          "expiresAt" TIMESTAMP(3) NOT NULL,
+          "resendCooldownUntil" TIMESTAMP(3) NOT NULL,
+          "usedAt" TIMESTAMP(3),
           "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
       `);
@@ -2763,6 +2805,434 @@ export async function verifyAndConsumeResetToken(
   globalRuntime._passwordResetTokens = list.filter((t) => t.tokenHash !== tokenHash);
 
   return { valid: true, email: record.email, userId: record.userId };
+}
+
+// ============================================
+// EMAIL OTP AUTHENTICATION HELPERS
+// ============================================
+
+/**
+ * Hash an OTP using HMAC-SHA256 with server salt/secret
+ */
+export function hashEmailOtp(otp: string, email: string): string {
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanOtp = otp.trim();
+  const secret = process.env.OTP_SECRET || process.env.SESSION_SECRET || 'paint-meraki-email-otp-secret-salt-2026';
+  return crypto.createHmac('sha256', secret).update(`${cleanEmail}:${cleanOtp}`).digest('hex');
+}
+
+/**
+ * Constant-time comparison of OTP hashes to prevent timing attacks
+ */
+export function verifyEmailOtpHash(otp: string, email: string, storedHash: string): boolean {
+  try {
+    const candidateHash = hashEmailOtp(otp, email);
+    const candidateBuf = Buffer.from(candidateHash, 'hex');
+    const storedBuf = Buffer.from(storedHash, 'hex');
+    if (candidateBuf.length !== storedBuf.length) {
+      return false;
+    }
+    return crypto.timingSafeEqual(candidateBuf, storedBuf);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Check if an email has an active resend cooldown
+ */
+export async function checkEmailOtpCooldown(
+  email: string
+): Promise<{ allowed: boolean; retryAfterSeconds: number }> {
+  const cleanEmail = email.trim().toLowerCase();
+  const now = Date.now();
+
+  if (isDbConfigured()) {
+    try {
+      const latest = await (prisma as any).emailOtp.findFirst({
+        where: { email: cleanEmail },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (latest && !latest.usedAt) {
+        const cooldownMs = new Date(latest.resendCooldownUntil).getTime() - now;
+        if (cooldownMs > 0) {
+          return {
+            allowed: false,
+            retryAfterSeconds: Math.ceil(cooldownMs / 1000),
+          };
+        }
+      }
+    } catch (err: any) {
+      console.warn('[checkEmailOtpCooldown] Notice:', err.message);
+    }
+  }
+
+  const inMem = (globalRuntime._emailOtps || []).find(
+    (item) => item.email === cleanEmail && !item.usedAt
+  );
+  if (inMem && inMem.resendCooldownUntil > now) {
+    return {
+      allowed: false,
+      retryAfterSeconds: Math.ceil((inMem.resendCooldownUntil - now) / 1000),
+    };
+  }
+
+  return { allowed: true, retryAfterSeconds: 0 };
+}
+
+/**
+ * Save an Email OTP record with cryptographic hash and expiry
+ */
+export async function saveEmailOtpRecord(params: {
+  email: string;
+  otpHash: string;
+  expiresInMinutes?: number;
+  action?: string;
+  cooldownSeconds?: number;
+  maxAttempts?: number;
+}): Promise<{ id: string; expiresAt: number; resendCooldownUntil: number }> {
+  const cleanEmail = params.email.trim().toLowerCase();
+  const expiresInMinutes = params.expiresInMinutes || 10;
+  const cooldownSeconds = params.cooldownSeconds || 60;
+  const maxAttempts = params.maxAttempts || 5;
+  const action = params.action || 'LOGIN';
+  const now = Date.now();
+  const expiresAt = now + expiresInMinutes * 60 * 1000;
+  const resendCooldownUntil = now + cooldownSeconds * 1000;
+  const id = 'otp_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+
+  const newRecord = {
+    id,
+    email: cleanEmail,
+    otpHash: params.otpHash,
+    action,
+    attempts: 0,
+    maxAttempts,
+    expiresAt,
+    resendCooldownUntil,
+    usedAt: undefined as number | undefined,
+    createdAt: now,
+  };
+
+  const existingList = (globalRuntime._emailOtps || []).filter(
+    (item) => item.email !== cleanEmail || (item.expiresAt > now && !item.usedAt)
+  );
+  globalRuntime._emailOtps = [newRecord, ...existingList];
+
+  if (isDbConfigured()) {
+    try {
+      await (prisma as any).emailOtp.create({
+        data: {
+          id,
+          email: cleanEmail,
+          otpHash: params.otpHash,
+          action,
+          attempts: 0,
+          maxAttempts,
+          expiresAt: new Date(expiresAt),
+          resendCooldownUntil: new Date(resendCooldownUntil),
+        },
+      });
+    } catch (err: any) {
+      console.warn('[saveEmailOtpRecord] Notice:', err.message);
+    }
+  }
+
+  return { id, expiresAt, resendCooldownUntil };
+}
+
+/**
+ * Delete an Email OTP record (e.g. if email dispatch failed)
+ */
+export async function deleteEmailOtpRecord(id: string): Promise<void> {
+  globalRuntime._emailOtps = (globalRuntime._emailOtps || []).filter((item) => item.id !== id);
+  if (isDbConfigured()) {
+    try {
+      await (prisma as any).emailOtp.delete({
+        where: { id },
+      });
+    } catch (err: any) {
+      console.warn('[deleteEmailOtpRecord] Notice:', err.message);
+    }
+  }
+}
+
+/**
+ * Verify and consume an Email OTP record
+ */
+export async function verifyAndConsumeEmailOtpRecord(
+  email: string,
+  enteredOtp: string,
+  action?: string
+): Promise<{
+  success: boolean;
+  error?: string;
+  code?: 'NOT_FOUND' | 'EXPIRED' | 'REUSED' | 'MAX_ATTEMPTS' | 'INVALID_CODE';
+  remainingAttempts?: number;
+}> {
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanOtp = (enteredOtp || '').trim();
+  const now = Date.now();
+
+  // Try DB first if configured
+  if (isDbConfigured()) {
+    try {
+      const whereClause: any = { email: cleanEmail };
+      if (action) whereClause.action = action;
+
+      const record = await (prisma as any).emailOtp.findFirst({
+        where: whereClause,
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (!record) {
+        return {
+          success: false,
+          error: 'No active verification code found for this email. Please request a new code.',
+          code: 'NOT_FOUND',
+        };
+      }
+
+      if (record.usedAt) {
+        return {
+          success: false,
+          error: 'This verification code has already been used. Please request a new code.',
+          code: 'REUSED',
+        };
+      }
+
+      if (new Date(record.expiresAt).getTime() <= now) {
+        return {
+          success: false,
+          error: 'This verification code has expired. Please request a new code.',
+          code: 'EXPIRED',
+        };
+      }
+
+      if (record.attempts >= record.maxAttempts) {
+        return {
+          success: false,
+          error: 'Too many incorrect attempts. This code is now invalid. Please request a new code.',
+          code: 'MAX_ATTEMPTS',
+          remainingAttempts: 0,
+        };
+      }
+
+      const isMatch = verifyEmailOtpHash(cleanOtp, cleanEmail, record.otpHash);
+      if (!isMatch) {
+        const newAttempts = record.attempts + 1;
+        await (prisma as any).emailOtp.update({
+          where: { id: record.id },
+          data: { attempts: newAttempts },
+        });
+
+        const memRecord = (globalRuntime._emailOtps || []).find((m) => m.id === record.id);
+        if (memRecord) {
+          memRecord.attempts = newAttempts;
+        }
+
+        const remaining = Math.max(record.maxAttempts - newAttempts, 0);
+        if (remaining === 0) {
+          return {
+            success: false,
+            error: 'Too many incorrect attempts. This code is now invalid. Please request a new code.',
+            code: 'MAX_ATTEMPTS',
+            remainingAttempts: 0,
+          };
+        }
+
+        return {
+          success: false,
+          error: `Incorrect verification code. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.`,
+          code: 'INVALID_CODE',
+          remainingAttempts: remaining,
+        };
+      }
+
+      // Valid OTP -> Mark consumed
+      await (prisma as any).emailOtp.update({
+        where: { id: record.id },
+        data: { usedAt: new Date() },
+      });
+
+      const memRecord = (globalRuntime._emailOtps || []).find((m) => m.id === record.id);
+      if (memRecord) {
+        memRecord.usedAt = now;
+      }
+
+      return { success: true };
+    } catch (err: any) {
+      console.warn('[verifyAndConsumeEmailOtpRecord] DB exception, falling back to memory:', err.message);
+    }
+  }
+
+  // Fallback to in-memory store
+  const list = globalRuntime._emailOtps || [];
+  const records = list
+    .filter((item) => item.email === cleanEmail && (!action || item.action === action))
+    .sort((a, b) => b.createdAt - a.createdAt);
+
+  if (records.length === 0) {
+    return {
+      success: false,
+      error: 'No active verification code found for this email. Please request a new code.',
+      code: 'NOT_FOUND',
+    };
+  }
+
+  const record = records[0];
+
+  if (record.usedAt) {
+    return {
+      success: false,
+      error: 'This verification code has already been used. Please request a new code.',
+      code: 'REUSED',
+    };
+  }
+
+  if (record.expiresAt <= now) {
+    return {
+      success: false,
+      error: 'This verification code has expired. Please request a new code.',
+      code: 'EXPIRED',
+    };
+  }
+
+  if (record.attempts >= record.maxAttempts) {
+    return {
+      success: false,
+      error: 'Too many incorrect attempts. This code is now invalid. Please request a new code.',
+      code: 'MAX_ATTEMPTS',
+      remainingAttempts: 0,
+    };
+  }
+
+  const isMatch = verifyEmailOtpHash(cleanOtp, cleanEmail, record.otpHash);
+  if (!isMatch) {
+    record.attempts += 1;
+    const remaining = Math.max(record.maxAttempts - record.attempts, 0);
+    if (remaining === 0) {
+      return {
+        success: false,
+        error: 'Too many incorrect attempts. This code is now invalid. Please request a new code.',
+        code: 'MAX_ATTEMPTS',
+        remainingAttempts: 0,
+      };
+    }
+    return {
+      success: false,
+      error: `Incorrect verification code. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.`,
+      code: 'INVALID_CODE',
+      remainingAttempts: remaining,
+    };
+  }
+
+  record.usedAt = now;
+  return { success: true };
+}
+
+/**
+ * Find or create a Customer account authenticated via verified Email
+ */
+export async function findOrCreateCustomerByEmail(data: {
+  email: string;
+  fullName?: string;
+  mobile?: string;
+}): Promise<User> {
+  const users = await getAllUsers();
+  const cleanEmail = data.email.trim().toLowerCase();
+  const rawMobile = data.mobile || '';
+  const digitsOnly = rawMobile.replace(/\D/g, '');
+  const mobile = digitsOnly.length >= 10 ? digitsOnly.slice(-10) : digitsOnly;
+
+  let existing = users.find((u) => u.email && u.email.toLowerCase() === cleanEmail);
+
+  if (!existing && mobile) {
+    existing = users.find((u) => {
+      const uDigits = (u.mobile || '').replace(/\D/g, '');
+      const u10 = uDigits.length >= 10 ? uDigits.slice(-10) : uDigits;
+      return u10 === mobile;
+    });
+  }
+
+  const now = new Date().toISOString();
+
+  if (existing) {
+    let updated = false;
+    if (data.fullName && (!existing.fullName || existing.fullName === 'Valued Customer')) {
+      existing.fullName = data.fullName.trim();
+      updated = true;
+    }
+    if (mobile && (!existing.mobile || existing.mobile === '0000000000')) {
+      existing.mobile = mobile;
+      updated = true;
+    }
+    if (!existing.email) {
+      existing.email = cleanEmail;
+      updated = true;
+    }
+
+    if (updated) {
+      existing.updatedAt = now;
+      if (isDbConfigured()) {
+        try {
+          await prisma.user.update({
+            where: { id: existing.id },
+            data: {
+              fullName: existing.fullName,
+              mobile: existing.mobile,
+              email: existing.email,
+              updatedAt: new Date(),
+            },
+          });
+        } catch (err: any) {
+          console.warn('[findOrCreateCustomerByEmail] Update notice:', err.message);
+        }
+      }
+    }
+
+    return existing;
+  }
+
+  const defaultName = cleanEmail.split('@')[0].replace(/[._-]/g, ' ');
+  const capitalizedName = defaultName
+    .split(' ')
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+
+  const newCustomer: User = {
+    id: 'usr_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6),
+    fullName: data.fullName?.trim() || capitalizedName || 'Valued Customer',
+    email: cleanEmail,
+    mobile: mobile || '0000000000',
+    role: 'CUSTOMER',
+    status: 'ACTIVE',
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const list = globalRuntime._users || [];
+  globalRuntime._users = [newCustomer, ...list];
+
+  if (isDbConfigured()) {
+    try {
+      await prisma.user.create({
+        data: {
+          id: newCustomer.id,
+          fullName: newCustomer.fullName,
+          email: newCustomer.email,
+          mobile: newCustomer.mobile,
+          role: 'CUSTOMER',
+          status: 'ACTIVE',
+        },
+      });
+    } catch (err: any) {
+      console.warn('[findOrCreateCustomerByEmail] Create notice:', err.message);
+    }
+  }
+
+  return newCustomer;
 }
 
 export async function findOrCreateCustomerByFirebase(data: {

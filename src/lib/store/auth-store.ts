@@ -32,6 +32,29 @@ interface AuthStore {
   changePassword: (currentPassword: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
   forgotPassword: (email: string) => Promise<{ success: boolean; message?: string; devResetToken?: string; devResetUrl?: string; error?: string }>;
   resetPassword: (token: string, newPassword: string, confirmPassword?: string) => Promise<{ success: boolean; message?: string; error?: string }>;
+  sendEmailOtp: (
+    email: string,
+    action?: string,
+    fullName?: string
+  ) => Promise<{
+    success: boolean;
+    message?: string;
+    cooldownSeconds?: number;
+    error?: string;
+  }>;
+  verifyEmailOtp: (
+    email: string,
+    otp: string,
+    fullName?: string,
+    mobile?: string,
+    action?: string
+  ) => Promise<{
+    success: boolean;
+    user?: User;
+    error?: string;
+    remainingAttempts?: number;
+    code?: string;
+  }>;
 }
 
 export const useAuthStore = create<AuthStore>()(
@@ -299,6 +322,54 @@ export const useAuthStore = create<AuthStore>()(
           return { success: false, error: data.error || 'Failed to reset password' };
         } catch (err: any) {
           return { success: false, error: err.message || 'Network error' };
+        }
+      },
+
+      sendEmailOtp: async (email, action = 'LOGIN', fullName) => {
+        try {
+          const res = await fetch('/api/auth/otp/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, action, fullName }),
+          });
+          const data = await res.json();
+          if (res.ok && data.success) {
+            return {
+              success: true,
+              message: data.message,
+              cooldownSeconds: data.cooldownSeconds || 60,
+            };
+          }
+          return {
+            success: false,
+            error: data.error || 'Failed to send verification code',
+            cooldownSeconds: data.retryAfterSeconds,
+          };
+        } catch (err: any) {
+          return { success: false, error: err.message || 'Network error while sending verification code' };
+        }
+      },
+
+      verifyEmailOtp: async (email, otp, fullName, mobile, action) => {
+        try {
+          const res = await fetch('/api/auth/otp/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, otp, fullName, mobile, action }),
+          });
+          const data = await res.json();
+          if (res.ok && data.success && data.user) {
+            set({ user: data.user, isAuthenticated: true, isLoading: false });
+            return { success: true, user: data.user };
+          }
+          return {
+            success: false,
+            error: data.error || 'Verification failed',
+            remainingAttempts: data.remainingAttempts,
+            code: data.code,
+          };
+        } catch (err: any) {
+          return { success: false, error: err.message || 'Network error during verification' };
         }
       },
     }),
